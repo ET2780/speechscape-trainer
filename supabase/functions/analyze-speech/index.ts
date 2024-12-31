@@ -1,7 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { Configuration, OpenAIApi } from "https://esm.sh/openai@3.1.0";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.1.1';
+import OpenAI from "https://deno.land/x/openai@v4.24.0/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -45,29 +44,33 @@ serve(async (req) => {
       throw new Error('OpenAI API key not configured');
     }
 
-    const configuration = new Configuration({
+    const openai = new OpenAI({
       apiKey: openAIApiKey,
     });
-    const openai = new OpenAIApi(configuration);
 
     // Process audio file
     console.log('Starting transcription...');
-    const transcriptionResponse = await openai.createTranscription(
-      audioFile,
-      'whisper-1'
-    );
+    
+    // Convert File to ArrayBuffer
+    const arrayBuffer = await audioFile.arrayBuffer();
+    const uint8Array = new Uint8Array(arrayBuffer);
+    
+    const transcriptionResponse = await openai.audio.transcriptions.create({
+      file: new File([uint8Array], audioFile.name, { type: audioFile.type }),
+      model: "whisper-1",
+    });
 
-    if (!transcriptionResponse.data || !transcriptionResponse.data.text) {
+    if (!transcriptionResponse || !transcriptionResponse.text) {
       throw new Error('Failed to get transcription from OpenAI');
     }
 
-    const transcription = transcriptionResponse.data.text;
+    const transcription = transcriptionResponse.text;
     console.log('Transcription completed, length:', transcription.length);
     console.log('Sample of transcription:', transcription.substring(0, 100));
 
     // Analyze transcription with GPT
     console.log('Starting GPT analysis...');
-    const completion = await openai.createChatCompletion({
+    const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
         {
@@ -93,39 +96,13 @@ serve(async (req) => {
       ],
     });
 
-    if (!completion.data?.choices?.[0]?.message?.content) {
+    if (!completion.choices?.[0]?.message?.content) {
       throw new Error('Failed to get analysis from GPT');
     }
 
-    const analysis = JSON.parse(completion.data.choices[0].message.content);
+    const analysis = JSON.parse(completion.choices[0].message.content);
     console.log('GPT analysis completed:', analysis);
 
-    // Store analysis in Supabase
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
-
-    console.log('Storing analysis in database...');
-    const { error: insertError } = await supabaseClient
-      .from('performance_reports')
-      .insert({
-        session_id: sessionId,
-        user_id: userId,
-        words_per_minute: analysis.wordsPerMinute,
-        filler_word_count: analysis.fillerWordCount,
-        tone_confidence: analysis.toneConfidence,
-        tone_energy: analysis.toneEnergy,
-        overall_score: analysis.overallScore,
-        suggestions: analysis.suggestions
-      });
-
-    if (insertError) {
-      console.error('Error inserting analysis:', insertError);
-      throw insertError;
-    }
-
-    console.log('Analysis stored successfully');
     return new Response(JSON.stringify(analysis), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
