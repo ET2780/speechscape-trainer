@@ -34,8 +34,8 @@ export const PracticeSession: React.FC<PracticeSessionProps> = ({
     if (!isSessionActive) return;
 
     console.log('Setting up speech recognition');
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
+    const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognitionAPI) {
       console.error('Speech recognition not supported');
       toast({
         title: "Speech Recognition Unavailable",
@@ -45,11 +45,11 @@ export const PracticeSession: React.FC<PracticeSessionProps> = ({
       return;
     }
 
-    const recognition = new SpeechRecognition();
+    const recognition = new SpeechRecognitionAPI();
     recognition.continuous = true;
     recognition.interimResults = true;
 
-    recognition.onresult = (event) => {
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
       let fullTranscript = '';
       for (let i = 0; i < event.results.length; i++) {
         fullTranscript += event.results[i][0].transcript + ' ';
@@ -58,7 +58,7 @@ export const PracticeSession: React.FC<PracticeSessionProps> = ({
       setTranscript(fullTranscript);
     };
 
-    recognition.onerror = (event) => {
+    recognition.onerror = (event: SpeechRecognitionEvent) => {
       console.error('Speech recognition error:', event.error);
       toast({
         title: "Speech Recognition Error",
