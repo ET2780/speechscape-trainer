@@ -1,13 +1,38 @@
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { useNavigate } from "react-router-dom";
+import { usePerformanceHistory } from "@/hooks/use-performance-history";
+import { format } from "date-fns";
+import { PerformanceReport } from "@/components/practice/PerformanceReport";
 
 const History = () => {
   const navigate = useNavigate();
+  const { data: reports, isLoading, error } = usePerformanceHistory();
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white p-6">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-6xl mx-auto">
         <Button
           variant="ghost"
           className="mb-6"
@@ -16,15 +41,77 @@ const History = () => {
           ← Back to Home
         </Button>
 
-        <h1 className="text-3xl font-bold mb-6">Session History</h1>
-
-        <div className="space-y-4">
-          <Card className="p-6">
-            <p className="text-gray-600 text-center">
-              Connect to Supabase to view your session history
-            </p>
-          </Card>
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-3xl">Performance History</CardTitle>
+            <CardDescription>
+              View your past practice session reports and track your progress
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <p className="text-center py-4">Loading your performance history...</p>
+            ) : error ? (
+              <p className="text-center text-red-500 py-4">
+                Error loading performance history. Please try again later.
+              </p>
+            ) : reports?.length === 0 ? (
+              <p className="text-center py-4">
+                No performance reports yet. Complete a practice session to see your results here.
+              </p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Practice Type</TableHead>
+                    <TableHead>Overall Score</TableHead>
+                    <TableHead>Words per Minute</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {reports?.map((report) => (
+                    <TableRow key={report.id}>
+                      <TableCell>
+                        {format(new Date(report.created_at), "PPP")}
+                      </TableCell>
+                      <TableCell className="capitalize">
+                        {report.practice_sessions.practice_type}
+                      </TableCell>
+                      <TableCell>{report.overall_score}%</TableCell>
+                      <TableCell>{report.words_per_minute}</TableCell>
+                      <TableCell>
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button variant="outline" size="sm">
+                              View Details
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-3xl">
+                            <DialogHeader>
+                              <DialogTitle>Performance Report</DialogTitle>
+                            </DialogHeader>
+                            <PerformanceReport
+                              analysis={{
+                                wordsPerMinute: report.words_per_minute || 0,
+                                fillerWordCount: report.filler_word_count || 0,
+                                toneConfidence: report.tone_confidence || 0,
+                                toneEnergy: report.tone_energy || 0,
+                                overallScore: report.overall_score || 0,
+                                suggestions: report.suggestions || [],
+                              }}
+                            />
+                          </DialogContent>
+                        </Dialog>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
