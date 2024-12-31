@@ -9,6 +9,56 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      performance_reports: {
+        Row: {
+          created_at: string
+          filler_word_count: number | null
+          id: string
+          overall_score: number | null
+          session_id: string
+          suggestions: string[] | null
+          tone_confidence: number | null
+          tone_energy: number | null
+          updated_at: string
+          user_id: string
+          words_per_minute: number | null
+        }
+        Insert: {
+          created_at?: string
+          filler_word_count?: number | null
+          id?: string
+          overall_score?: number | null
+          session_id: string
+          suggestions?: string[] | null
+          tone_confidence?: number | null
+          tone_energy?: number | null
+          updated_at?: string
+          user_id: string
+          words_per_minute?: number | null
+        }
+        Update: {
+          created_at?: string
+          filler_word_count?: number | null
+          id?: string
+          overall_score?: number | null
+          session_id?: string
+          suggestions?: string[] | null
+          tone_confidence?: number | null
+          tone_energy?: number | null
+          updated_at?: string
+          user_id?: string
+          words_per_minute?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "performance_reports_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "practice_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       practice_sessions: {
         Row: {
           created_at: string

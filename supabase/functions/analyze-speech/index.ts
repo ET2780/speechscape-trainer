@@ -1,10 +1,5 @@
-import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
-
-const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
-const supabaseUrl = Deno.env.get('SUPABASE_URL');
-const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+import { Configuration, OpenAIApi } from "https://esm.sh/openai@3.1.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -19,47 +14,47 @@ serve(async (req) => {
   try {
     const { transcription, sessionId, userId } = await req.json();
 
+    const configuration = new Configuration({
+      apiKey: Deno.env.get('OPENAI_API_KEY'),
+    });
+    const openai = new OpenAIApi(configuration);
+
     // Analyze speech with GPT-4
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'system',
-            content: `You are a speech analysis expert. Analyze the following transcription and provide:
-              1. Words per minute (based on average reading speed)
-              2. Count of filler words (um, uh, like, you know, etc.)
-              3. Tone analysis (confidence score 0-100, energy score 0-100)
-              4. Overall score (0-100)
-              5. Three specific suggestions for improvement
-              
-              Respond in JSON format with these keys:
-              {
-                "wordsPerMinute": number,
-                "fillerWordCount": number,
-                "toneConfidence": number,
-                "toneEnergy": number,
-                "overallScore": number,
-                "suggestions": string[]
-              }`
-          },
-          { role: 'user', content: transcription }
-        ],
-      }),
+    const completion = await openai.createChatCompletion({
+      model: "gpt-4",
+      messages: [
+        {
+          role: "system",
+          content: `You are a speech analysis expert. Analyze the following transcription and provide:
+            1. Words per minute (based on average reading speed)
+            2. Count of filler words (um, uh, like, you know, etc.)
+            3. Tone analysis (confidence score 0-100, energy score 0-100)
+            4. Overall score (0-100)
+            5. Three specific suggestions for improvement
+            
+            Respond in JSON format with these keys:
+            {
+              "wordsPerMinute": number,
+              "fillerWordCount": number,
+              "toneConfidence": number,
+              "toneEnergy": number,
+              "overallScore": number,
+              "suggestions": string[]
+            }`
+        },
+        { role: "user", content: transcription }
+      ],
     });
 
-    const analysisData = await response.json();
-    const analysis = JSON.parse(analysisData.choices[0].message.content);
+    const analysis = JSON.parse(completion.data.choices[0].message.content);
 
-    // Store the analysis in Supabase
-    const supabase = createClient(supabaseUrl!, supabaseServiceKey!);
-    
-    const { error: insertError } = await supabase
+    // Store analysis in Supabase
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    const { error: insertError } = await supabaseClient
       .from('performance_reports')
       .insert({
         session_id: sessionId,
