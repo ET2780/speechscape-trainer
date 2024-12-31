@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { PresentationEnvironment } from "./PresentationEnvironment";
 import { InterviewEnvironment } from "./InterviewEnvironment";
@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { PerformanceReport } from "./PerformanceReport";
+import OpenAI from 'openai';
 
 type PracticeSessionProps = {
   practiceType: 'presentation' | 'interview';
@@ -23,56 +24,57 @@ export const PracticeSession: React.FC<PracticeSessionProps> = ({
   industry
 }) => {
   const [isSessionActive, setIsSessionActive] = useState(true);
+  const [isRecording, setIsRecording] = useState(false);
+  const [audioChunks, setAudioChunks] = useState<Blob[]>([]);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const [transcript, setTranscript] = useState<string>('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState<any>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  // Speech recognition setup
+  // Audio recording setup
   useEffect(() => {
     if (!isSessionActive) return;
 
-    console.log('Setting up speech recognition');
-    const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognitionAPI) {
-      console.error('Speech recognition not supported');
-      toast({
-        title: "Speech Recognition Unavailable",
-        description: "Your browser doesn't support speech recognition",
-        variant: "destructive",
-      });
-      return;
-    }
+    const startRecording = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const mediaRecorder = new MediaRecorder(stream);
+        mediaRecorderRef.current = mediaRecorder;
+        
+        const chunks: Blob[] = [];
+        mediaRecorder.ondataavailable = (e) => {
+          if (e.data.size > 0) {
+            chunks.push(e.data);
+          }
+        };
 
-    const recognition = new SpeechRecognitionAPI();
-    recognition.continuous = true;
-    recognition.interimResults = true;
+        mediaRecorder.onstop = () => {
+          setAudioChunks(chunks);
+        };
 
-    recognition.onresult = (event: SpeechRecognitionEvent) => {
-      let fullTranscript = '';
-      for (let i = 0; i < event.results.length; i++) {
-        fullTranscript += event.results[i][0].transcript + ' ';
+        mediaRecorder.start(1000); // Collect data every second
+        setIsRecording(true);
+        console.log('Recording started');
+      } catch (error) {
+        console.error('Error accessing microphone:', error);
+        toast({
+          title: "Microphone Access Error",
+          description: "Please allow microphone access to use this feature",
+          variant: "destructive",
+        });
       }
-      console.log('Updated transcript:', fullTranscript);
-      setTranscript(fullTranscript);
     };
 
-    recognition.onerror = (event: SpeechRecognitionEvent) => {
-      console.error('Speech recognition error:', event.error);
-      toast({
-        title: "Speech Recognition Error",
-        description: `Error: ${event.error}`,
-        variant: "destructive",
-      });
-    };
-
-    recognition.start();
-    console.log('Speech recognition started');
+    startRecording();
 
     return () => {
-      recognition.stop();
-      console.log('Speech recognition stopped');
+      if (mediaRecorderRef.current && isRecording) {
+        mediaRecorderRef.current.stop();
+        setIsRecording(false);
+        console.log('Recording stopped');
+      }
     };
   }, [isSessionActive, toast]);
 
@@ -81,18 +83,23 @@ export const PracticeSession: React.FC<PracticeSessionProps> = ({
     setIsSessionActive(false);
     setIsAnalyzing(true);
 
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
+
     try {
-      console.log('Sending transcript for analysis:', transcript);
+      // Create audio file from chunks
+      const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+      const formData = new FormData();
+      formData.append('audio', audioBlob, 'recording.webm');
+      formData.append('sessionId', crypto.randomUUID());
+      formData.append('userId', (await supabase.auth.getUser()).data.user?.id || '');
+
+      console.log('Sending audio for transcription and analysis');
       const response = await fetch('/api/analyze-speech', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          transcription: transcript,
-          sessionId: crypto.randomUUID(),
-          userId: (await supabase.auth.getUser()).data.user?.id,
-        }),
+        body: formData,
       });
 
       if (!response.ok) throw new Error('Failed to analyze speech');

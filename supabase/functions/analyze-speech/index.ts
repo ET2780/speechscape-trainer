@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { Configuration, OpenAIApi } from "https://esm.sh/openai@3.1.0";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.1.1';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,14 +13,27 @@ serve(async (req) => {
   }
 
   try {
-    const { transcription, sessionId, userId } = await req.json();
+    const formData = await req.formData();
+    const audioFile = formData.get('audio') as File;
+    const sessionId = formData.get('sessionId') as string;
+    const userId = formData.get('userId') as string;
 
+    // Initialize OpenAI
     const configuration = new Configuration({
       apiKey: Deno.env.get('OPENAI_API_KEY'),
     });
     const openai = new OpenAIApi(configuration);
 
-    // Analyze speech with GPT-4
+    // Transcribe audio using Whisper
+    const transcriptionResponse = await openai.createTranscription(
+      audioFile,
+      'whisper-1'
+    );
+
+    const transcription = transcriptionResponse.data.text;
+    console.log('Transcription:', transcription);
+
+    // Analyze transcription with GPT-4
     const completion = await openai.createChatCompletion({
       model: "gpt-4",
       messages: [
