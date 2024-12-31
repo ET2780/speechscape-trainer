@@ -61,6 +61,7 @@ const Practice = () => {
       }
 
       let uploadedSlideUrl = '';
+      // Only attempt file upload if a file was selected
       if (practiceType === 'presentation' && file) {
         const fileExt = file.name.split('.').pop();
         const filePath = `${user.id}/${crypto.randomUUID()}.${fileExt}`;
@@ -78,17 +79,22 @@ const Practice = () => {
 
         if (uploadError) {
           console.error("Upload error:", uploadError);
-          throw uploadError;
-        }
-
-        const { data: { publicUrl } } = supabase.storage
-          .from('slides')
-          .getPublicUrl(filePath);
+          // Don't throw the error, just show a warning toast
+          toast({
+            title: "File upload failed",
+            description: "Continuing without slides",
+            variant: "warning",
+          });
+        } else {
+          const { data: { publicUrl } } = supabase.storage
+            .from('slides')
+            .getPublicUrl(filePath);
+            
+          console.log("Generated public URL:", publicUrl);
           
-        console.log("Generated public URL:", publicUrl);
-        
-        uploadedSlideUrl = publicUrl;
-        setSlideUrl(uploadedSlideUrl);
+          uploadedSlideUrl = publicUrl;
+          setSlideUrl(uploadedSlideUrl);
+        }
       }
 
       let questions = [];
@@ -167,7 +173,7 @@ const Practice = () => {
 
               <Button
                 onClick={handleStartPractice}
-                disabled={isLoading || (practiceType === 'presentation' && !file) || (practiceType === 'interview' && (!jobType || !industry))}
+                disabled={isLoading || (practiceType === 'interview' && (!jobType || !industry))}
                 className="w-full mt-6"
               >
                 {isLoading ? "Setting up..." : "Start Practice"}
