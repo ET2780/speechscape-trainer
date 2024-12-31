@@ -83,7 +83,7 @@ const Practice = () => {
           toast({
             title: "File upload failed",
             description: "Continuing without slides",
-            variant: "warning",
+            variant: "default", // Changed from "warning" to "default"
           });
         } else {
           const { data: { publicUrl } } = supabase.storage
