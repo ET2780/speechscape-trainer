@@ -9,6 +9,9 @@ import { SlideUpload } from "@/components/practice/SlideUpload";
 import { InterviewSetup } from "@/components/practice/InterviewSetup";
 import { PresentationEnvironment } from "@/components/practice/PresentationEnvironment";
 import { InterviewEnvironment } from "@/components/practice/InterviewEnvironment";
+import { GestureProvider } from "@/contexts/GestureContext";
+import { GestureTracker } from "@/components/practice/GestureTracker";
+import { GestureMetrics } from "@/components/practice/GestureMetrics";
 
 const Practice = () => {
   const navigate = useNavigate();
@@ -111,51 +114,57 @@ const Practice = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white p-6">
-      <div className="max-w-6xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold">Practice Session</h1>
-          <Button variant="outline" onClick={handleSignOut}>
-            Sign Out
-          </Button>
-        </div>
-
-        {!sessionStarted ? (
-          <div className="max-w-4xl mx-auto">
-            <PracticeTypeSelector value={practiceType} onChange={setPracticeType} />
-
-            {practiceType === 'presentation' && (
-              <SlideUpload onFileChange={handleFileUpload} file={file} />
-            )}
-
-            {practiceType === 'interview' && (
-              <InterviewSetup
-                jobType={jobType}
-                industry={industry}
-                onJobTypeChange={setJobType}
-                onIndustryChange={setIndustry}
-              />
-            )}
-
-            <Button
-              onClick={handleStartPractice}
-              disabled={isLoading || (practiceType === 'presentation' && !file) || (practiceType === 'interview' && (!jobType || !industry))}
-              className="w-full mt-6"
-            >
-              {isLoading ? "Setting up..." : "Start Practice"}
+    <GestureProvider>
+      <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white p-6">
+        <div className="max-w-6xl mx-auto">
+          <div className="flex justify-between items-center mb-8">
+            <h1 className="text-3xl font-bold">Practice Session</h1>
+            <Button variant="outline" onClick={handleSignOut}>
+              Sign Out
             </Button>
           </div>
-        ) : (
-          <div className="w-full aspect-video bg-gray-50 rounded-lg shadow-lg overflow-hidden">
-            {practiceType === 'presentation' ? (
-              <PresentationEnvironment slideUrl={slideUrl} />
-            ) : (
-              <InterviewEnvironment />
-            )}
-          </div>
-        )}
+
+          {!sessionStarted ? (
+            <div className="max-w-4xl mx-auto">
+              <PracticeTypeSelector value={practiceType} onChange={setPracticeType} />
+
+              {practiceType === 'presentation' && (
+                <SlideUpload onFileChange={handleFileUpload} file={file} />
+              )}
+
+              {practiceType === 'interview' && (
+                <InterviewSetup
+                  jobType={jobType}
+                  industry={industry}
+                  onJobTypeChange={setJobType}
+                  onIndustryChange={setIndustry}
+                />
+              )}
+
+              <Button
+                onClick={handleStartPractice}
+                disabled={isLoading || (practiceType === 'presentation' && !file) || (practiceType === 'interview' && (!jobType || !industry))}
+                className="w-full mt-6"
+              >
+                {isLoading ? "Setting up..." : "Start Practice"}
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              <div className="w-full aspect-video bg-gray-50 rounded-lg shadow-lg overflow-hidden">
+                {practiceType === 'presentation' ? (
+                  <PresentationEnvironment slideUrl={slideUrl} />
+                ) : (
+                  <InterviewEnvironment />
+                )}
+              </div>
+              <GestureTracker />
+              <GestureMetrics />
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </GestureProvider>
   );
 };
 
