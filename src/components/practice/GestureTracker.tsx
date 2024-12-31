@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useGesture } from '@/contexts/GestureContext';
 import { useMediaStream } from '@/hooks/useMediaStream';
 import { FrameCapture } from './gesture/FrameCapture';
-import { GestureAnalyzer } from './gesture/GestureAnalyzer';
+import { analyzeGestureFrames } from '@/services/gestureService';
 
 export const GestureTracker = () => {
   const { isTracking, updateGestureData } = useGesture();
@@ -26,7 +26,9 @@ export const GestureTracker = () => {
   const analyzer = {
     processFrame: async (blob: Blob) => {
       try {
-        const metrics = await fetch(blob);
+        console.log('Processing frame, size:', blob.size);
+        const metrics = await analyzeGestureFrames([blob]);
+        console.log('Received gesture metrics:', metrics);
         updateGestureData(metrics);
       } catch (err) {
         console.error('Error analyzing frame:', err);
