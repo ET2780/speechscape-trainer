@@ -7,6 +7,8 @@ import { generateInterviewQuestions } from "@/utils/openai";
 import { PracticeTypeSelector } from "@/components/practice/PracticeTypeSelector";
 import { SlideUpload } from "@/components/practice/SlideUpload";
 import { InterviewSetup } from "@/components/practice/InterviewSetup";
+import { PresentationEnvironment } from "@/components/practice/PresentationEnvironment";
+import { InterviewEnvironment } from "@/components/practice/InterviewEnvironment";
 
 const Practice = () => {
   const navigate = useNavigate();
@@ -16,6 +18,8 @@ const Practice = () => {
   const [jobType, setJobType] = useState('');
   const [industry, setIndustry] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [slideUrl, setSlideUrl] = useState<string | null>(null);
+  const [sessionStarted, setSessionStarted] = useState(false);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -52,7 +56,7 @@ const Practice = () => {
         return;
       }
 
-      let slideUrl = '';
+      let uploadedSlideUrl = '';
       if (practiceType === 'presentation' && file) {
         const fileExt = file.name.split('.').pop();
         const filePath = `${user.id}/${crypto.randomUUID()}.${fileExt}`;
@@ -67,7 +71,8 @@ const Practice = () => {
           .from('slides')
           .getPublicUrl(filePath);
           
-        slideUrl = publicUrl;
+        uploadedSlideUrl = publicUrl;
+        setSlideUrl(uploadedSlideUrl);
       }
 
       let questions = [];
@@ -82,18 +87,17 @@ const Practice = () => {
           practice_type: practiceType,
           job_type: jobType || null,
           industry: industry || null,
-          slide_url: slideUrl || null,
+          slide_url: uploadedSlideUrl || null,
         });
 
       if (error) throw error;
 
       toast({
-        title: "Session created",
-        description: "Your practice session has been set up successfully",
+        title: "Session started",
+        description: "Your practice environment is ready",
       });
 
-      // Here you would typically navigate to the actual practice session
-      // For now, we'll just show a success message
+      setSessionStarted(true);
     } catch (error) {
       console.error('Error setting up practice:', error);
       toast({
@@ -108,7 +112,7 @@ const Practice = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white p-6">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-6xl mx-auto">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold">Practice Session</h1>
           <Button variant="outline" onClick={handleSignOut}>
@@ -116,28 +120,40 @@ const Practice = () => {
           </Button>
         </div>
 
-        <PracticeTypeSelector value={practiceType} onChange={setPracticeType} />
+        {!sessionStarted ? (
+          <div className="max-w-4xl mx-auto">
+            <PracticeTypeSelector value={practiceType} onChange={setPracticeType} />
 
-        {practiceType === 'presentation' && (
-          <SlideUpload onFileChange={handleFileUpload} file={file} />
+            {practiceType === 'presentation' && (
+              <SlideUpload onFileChange={handleFileUpload} file={file} />
+            )}
+
+            {practiceType === 'interview' && (
+              <InterviewSetup
+                jobType={jobType}
+                industry={industry}
+                onJobTypeChange={setJobType}
+                onIndustryChange={setIndustry}
+              />
+            )}
+
+            <Button
+              onClick={handleStartPractice}
+              disabled={isLoading || (practiceType === 'presentation' && !file) || (practiceType === 'interview' && (!jobType || !industry))}
+              className="w-full mt-6"
+            >
+              {isLoading ? "Setting up..." : "Start Practice"}
+            </Button>
+          </div>
+        ) : (
+          <div className="w-full aspect-video bg-gray-50 rounded-lg shadow-lg overflow-hidden">
+            {practiceType === 'presentation' ? (
+              <PresentationEnvironment slideUrl={slideUrl} />
+            ) : (
+              <InterviewEnvironment />
+            )}
+          </div>
         )}
-
-        {practiceType === 'interview' && (
-          <InterviewSetup
-            jobType={jobType}
-            industry={industry}
-            onJobTypeChange={setJobType}
-            onIndustryChange={setIndustry}
-          />
-        )}
-
-        <Button
-          onClick={handleStartPractice}
-          disabled={isLoading || (practiceType === 'presentation' && !file) || (practiceType === 'interview' && (!jobType || !industry))}
-          className="w-full mt-6"
-        >
-          {isLoading ? "Setting up..." : "Start Practice"}
-        </Button>
       </div>
     </div>
   );
