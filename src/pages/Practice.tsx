@@ -3,12 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { generateInterviewQuestions } from "@/utils/openai";
+import { PracticeTypeSelector } from "@/components/practice/PracticeTypeSelector";
+import { SlideUpload } from "@/components/practice/SlideUpload";
+import { InterviewSetup } from "@/components/practice/InterviewSetup";
 
 const Practice = () => {
   const navigate = useNavigate();
@@ -24,7 +22,7 @@ const Practice = () => {
     navigate("/");
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (!selectedFile) return;
 
@@ -118,81 +116,19 @@ const Practice = () => {
           </Button>
         </div>
 
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>Choose Practice Type</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <RadioGroup
-              defaultValue="presentation"
-              onValueChange={(value) => setPracticeType(value as 'presentation' | 'interview')}
-              className="flex flex-col space-y-4"
-            >
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="presentation" id="presentation" />
-                <Label htmlFor="presentation">Presentation Practice</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="interview" id="interview" />
-                <Label htmlFor="interview">Mock Interview</Label>
-              </div>
-            </RadioGroup>
-          </CardContent>
-        </Card>
+        <PracticeTypeSelector value={practiceType} onChange={setPracticeType} />
 
         {practiceType === 'presentation' && (
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle>Upload Presentation Slides</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Input
-                type="file"
-                accept=".pdf,.pptx"
-                onChange={handleFileUpload}
-                className="mb-4"
-              />
-              {file && (
-                <p className="text-sm text-gray-600">
-                  Selected file: {file.name}
-                </p>
-              )}
-            </CardContent>
-          </Card>
+          <SlideUpload onFileChange={handleFileUpload} file={file} />
         )}
 
         {practiceType === 'interview' && (
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle>Interview Details</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="jobType">Job Type</Label>
-                <Input
-                  id="jobType"
-                  placeholder="e.g., Software Engineer"
-                  value={jobType}
-                  onChange={(e) => setJobType(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="industry">Industry</Label>
-                <Select onValueChange={setIndustry}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select industry" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="technology">Technology</SelectItem>
-                    <SelectItem value="healthcare">Healthcare</SelectItem>
-                    <SelectItem value="finance">Finance</SelectItem>
-                    <SelectItem value="education">Education</SelectItem>
-                    <SelectItem value="retail">Retail</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </CardContent>
-          </Card>
+          <InterviewSetup
+            jobType={jobType}
+            industry={industry}
+            onJobTypeChange={setJobType}
+            onIndustryChange={setIndustry}
+          />
         )}
 
         <Button
