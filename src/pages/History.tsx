@@ -101,6 +101,18 @@ const History = () => {
                                 overallScore: report.overall_score || 0,
                                 suggestions: report.suggestions || [],
                               }}
+                              gestureAnalysis={{
+                                gesturesPerMinute: 0, // Default values since we don't have this data yet
+                                gestureTypes: {
+                                  pointing: 0,
+                                  waving: 0,
+                                  openPalm: 0,
+                                  other: 0
+                                },
+                                smoothnessScore: 0,
+                                gestureToSpeechRatio: 0,
+                                aiFeedback: null
+                              }}
                             />
                           </DialogContent>
                         </Dialog>
