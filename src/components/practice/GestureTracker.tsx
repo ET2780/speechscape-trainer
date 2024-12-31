@@ -14,29 +14,45 @@ export const GestureTracker = () => {
   const frameBufferRef = useRef<Blob[]>([]);
 
   const captureFrame = () => {
-    if (!videoRef.current || !canvasRef.current) return;
+    if (!videoRef.current || !canvasRef.current) {
+      console.log('Video or canvas ref not available');
+      return;
+    }
 
     const video = videoRef.current;
     const canvas = canvasRef.current;
     const context = canvas.getContext('2d');
     
-    if (!context) return;
+    if (!context) {
+      console.log('Canvas context not available');
+      return;
+    }
 
+    // Set canvas dimensions to match video
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
+    
+    // Draw the current video frame
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
+    // Convert to blob
     canvas.toBlob(async (blob) => {
-      if (!blob) return;
-      console.log('Captured frame:', blob.size, 'bytes');
+      if (!blob) {
+        console.log('Failed to create blob from canvas');
+        return;
+      }
       
+      console.log('Captured frame:', blob.size, 'bytes');
       frameBufferRef.current.push(blob);
       
+      // Analyze frames when we have enough
       if (frameBufferRef.current.length >= 6) {
+        console.log('Processing frame buffer of size:', frameBufferRef.current.length);
         try {
           const metrics = await analyzeGestureFrames(frameBufferRef.current);
+          console.log('Received gesture metrics:', metrics);
           updateGestureData(metrics);
-          frameBufferRef.current = [];
+          frameBufferRef.current = []; // Clear the buffer after analysis
         } catch (error) {
           console.error('Error analyzing frames:', error);
           setError('Failed to analyze gestures. Please try again.');
@@ -46,7 +62,10 @@ export const GestureTracker = () => {
   };
 
   useEffect(() => {
-    if (!isTracking || !videoRef.current) return;
+    if (!isTracking) {
+      console.log('Gesture tracking is disabled');
+      return;
+    }
 
     const startVideo = async () => {
       try {
@@ -62,7 +81,11 @@ export const GestureTracker = () => {
         if (videoRef.current) {
           console.log('Camera access granted, setting up video stream');
           videoRef.current.srcObject = stream;
-          captureIntervalRef.current = setInterval(captureFrame, 5000);
+          videoRef.current.onloadedmetadata = () => {
+            console.log('Video metadata loaded, starting capture interval');
+            // Capture frames every 3 seconds instead of 5
+            captureIntervalRef.current = setInterval(captureFrame, 3000);
+          };
         }
       } catch (error) {
         console.error('Error accessing camera:', error);
@@ -78,10 +101,12 @@ export const GestureTracker = () => {
         clearInterval(captureIntervalRef.current);
       }
       const stream = videoRef.current?.srcObject as MediaStream;
-      stream?.getTracks().forEach(track => {
-        track.stop();
-        console.log('Stopped video track:', track.label);
-      });
+      if (stream) {
+        stream.getTracks().forEach(track => {
+          track.stop();
+          console.log('Stopped video track:', track.label);
+        });
+      }
       frameBufferRef.current = [];
     };
   }, [isTracking]);
@@ -106,7 +131,7 @@ export const GestureTracker = () => {
           />
           <canvas ref={canvasRef} className="hidden" />
           <div className="p-4 text-center text-sm text-muted-foreground">
-            Gesture analysis active - capturing frames every 5 seconds
+            Gesture analysis active - capturing frames every 3 seconds
           </div>
         </div>
       )}

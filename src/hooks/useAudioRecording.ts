@@ -30,7 +30,7 @@ export const useAudioRecording = () => {
       mediaRecorder.ondataavailable = (e) => {
         if (e.data.size > 0) {
           chunks.push(e.data);
-          console.log(`Recorded chunk: ${e.data.size} bytes`);
+          console.log(`Recorded audio chunk: ${e.data.size} bytes`);
           setAudioChunks(prevChunks => [...prevChunks, e.data]); // Update chunks immediately
         }
       };
@@ -40,7 +40,8 @@ export const useAudioRecording = () => {
         setAudioChunks(chunks);
       };
 
-      mediaRecorder.start(5000); // Request data every 5 seconds
+      // Request data every second instead of 5 seconds to get more frequent updates
+      mediaRecorder.start(1000);
       setIsRecording(true);
       console.log('Recording started successfully');
     } catch (error) {
@@ -58,7 +59,10 @@ export const useAudioRecording = () => {
     if (mediaRecorderRef.current && isRecording) {
       console.log('Stopping recording...');
       mediaRecorderRef.current.stop();
-      mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+      mediaRecorderRef.current.stream.getTracks().forEach(track => {
+        track.stop();
+        console.log('Stopped audio track:', track.label);
+      });
       setIsRecording(false);
     }
   }, [isRecording]);
