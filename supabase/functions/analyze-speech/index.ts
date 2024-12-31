@@ -75,22 +75,16 @@ serve(async (req) => {
       messages: [
         {
           role: "system",
-          content: `You are a speech analysis expert. Analyze the following transcription and provide:
-            1. Words per minute (based on average reading speed)
-            2. Count of filler words (um, uh, like, you know, etc.)
-            3. Tone analysis (confidence score 0-100, energy score 0-100)
-            4. Overall score (0-100)
-            5. Three specific suggestions for improvement
-            
-            Respond in JSON format with these keys:
-            {
-              "wordsPerMinute": number,
-              "fillerWordCount": number,
-              "toneConfidence": number,
-              "toneEnergy": number,
-              "overallScore": number,
-              "suggestions": string[]
-            }`
+          content: `You are a speech analysis expert. Analyze the following transcription and provide metrics in a strict JSON format with these exact keys and value types:
+{
+  "wordsPerMinute": number,
+  "fillerWordCount": number,
+  "toneConfidence": number,
+  "toneEnergy": number,
+  "overallScore": number,
+  "suggestions": string[]
+}
+Do not include any additional text, markdown formatting, or explanation - only return the JSON object.`
         },
         { role: "user", content: transcription }
       ],
@@ -100,12 +94,23 @@ serve(async (req) => {
       throw new Error('Failed to get analysis from GPT');
     }
 
-    const analysis = JSON.parse(completion.choices[0].message.content);
-    console.log('GPT analysis completed:', analysis);
+    let analysisText = completion.choices[0].message.content.trim();
+    
+    // Remove any potential markdown code block indicators
+    analysisText = analysisText.replace(/^```json\s*/, '').replace(/```$/, '');
+    
+    try {
+      const analysis = JSON.parse(analysisText);
+      console.log('GPT analysis completed:', analysis);
 
-    return new Response(JSON.stringify(analysis), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+      return new Response(JSON.stringify(analysis), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    } catch (parseError) {
+      console.error('Error parsing GPT response:', parseError);
+      console.error('Raw GPT response:', analysisText);
+      throw new Error('Failed to parse GPT analysis response');
+    }
   } catch (error) {
     console.error('Error in analyze-speech function:', error);
     return new Response(
