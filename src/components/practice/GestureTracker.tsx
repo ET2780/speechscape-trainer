@@ -3,13 +3,14 @@ import { Card } from '@/components/ui/card';
 import { useGesture } from '@/contexts/GestureContext';
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
+import { supabase } from '@/integrations/supabase/client';
 
 export const GestureTracker = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { isTracking, updateGestureData } = useGesture();
   const [error, setError] = useState<string | null>(null);
-  const captureIntervalRef = useRef<number>();
+  const captureIntervalRef = useRef<ReturnType<typeof setInterval>>();
 
   const captureFrame = () => {
     if (!videoRef.current || !canvasRef.current) return;

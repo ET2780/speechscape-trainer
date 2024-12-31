@@ -21,6 +21,8 @@ type GestureContextType = {
   stopTracking: () => void;
   gestureMetrics: GestureMetrics;
   updateGestureData: (metrics: GestureMetrics) => void;
+  aiFeedback: string | null;
+  generateFeedback: () => Promise<void>;
 };
 
 const defaultMetrics: GestureMetrics = {
@@ -41,15 +43,40 @@ const GestureContext = createContext<GestureContextType | undefined>(undefined);
 export const GestureProvider = ({ children }: { children: React.ReactNode }) => {
   const [isTracking, setIsTracking] = useState(false);
   const [gestureMetrics, setGestureMetrics] = useState<GestureMetrics>(defaultMetrics);
+  const [aiFeedback, setAiFeedback] = useState<string | null>(null);
   const { toast } = useToast();
 
   const updateGestureData = useCallback((metrics: GestureMetrics) => {
     setGestureMetrics(metrics);
+    if (metrics.aiFeedback) {
+      setAiFeedback(metrics.aiFeedback);
+    }
   }, []);
+
+  const generateFeedback = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-gesture-feedback', {
+        body: { metrics: gestureMetrics }
+      });
+
+      if (error) throw error;
+      if (data?.feedback) {
+        setAiFeedback(data.feedback);
+      }
+    } catch (error) {
+      console.error('Error generating feedback:', error);
+      toast({
+        title: "Error",
+        description: "Failed to generate AI feedback",
+        variant: "destructive",
+      });
+    }
+  };
 
   const startTracking = useCallback(() => {
     setIsTracking(true);
     setGestureMetrics(defaultMetrics);
+    setAiFeedback(null);
     console.log('Starting gesture tracking');
   }, []);
 
@@ -66,6 +93,8 @@ export const GestureProvider = ({ children }: { children: React.ReactNode }) => 
         stopTracking,
         gestureMetrics,
         updateGestureData,
+        aiFeedback,
+        generateFeedback,
       }}
     >
       {children}
