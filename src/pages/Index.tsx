@@ -1,18 +1,17 @@
 import { useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
 import { Auth } from "@supabase/auth-ui-react";
 import { ThemeSupa } from "@supabase/auth-ui-shared";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 
 const Index = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
-    // Check authentication status
+    // Check if user is already authenticated
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
@@ -53,22 +52,28 @@ const Index = () => {
         </div>
 
         <Card className="max-w-md mx-auto p-6">
-          <Auth
-            supabaseClient={supabase}
-            appearance={{
-              theme: ThemeSupa,
-              variables: {
-                default: {
-                  colors: {
-                    brand: '#3b82f6',
-                    brandAccent: '#2563eb',
+          <CardHeader>
+            <CardTitle>Welcome Back</CardTitle>
+            <CardDescription>Sign in to continue your practice</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Auth
+              supabaseClient={supabase}
+              appearance={{
+                theme: ThemeSupa,
+                variables: {
+                  default: {
+                    colors: {
+                      brand: '#3b82f6',
+                      brandAccent: '#2563eb',
+                    },
                   },
                 },
-              },
-            }}
-            providers={["google"]}
-            redirectTo={window.location.origin}
-          />
+              }}
+              providers={["google"]}
+              redirectTo={window.location.origin}
+            />
+          </CardContent>
         </Card>
       </div>
     </div>
