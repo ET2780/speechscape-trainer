@@ -8,7 +8,6 @@ import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { PerformanceReport } from "./PerformanceReport";
-import OpenAI from 'openai';
 
 type PracticeSessionProps = {
   practiceType: 'presentation' | 'interview';
@@ -27,7 +26,6 @@ export const PracticeSession: React.FC<PracticeSessionProps> = ({
   const [isRecording, setIsRecording] = useState(false);
   const [audioChunks, setAudioChunks] = useState<Blob[]>([]);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const [transcript, setTranscript] = useState<string>('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState<any>(null);
   const { toast } = useToast();
@@ -94,19 +92,20 @@ export const PracticeSession: React.FC<PracticeSessionProps> = ({
       const formData = new FormData();
       formData.append('audio', audioBlob, 'recording.webm');
       formData.append('sessionId', crypto.randomUUID());
-      formData.append('userId', (await supabase.auth.getUser()).data.user?.id || '');
+      
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+      formData.append('userId', user.id);
 
       console.log('Sending audio for transcription and analysis');
-      const response = await fetch('/api/analyze-speech', {
-        method: 'POST',
+      const { data, error } = await supabase.functions.invoke('analyze-speech', {
         body: formData,
       });
 
-      if (!response.ok) throw new Error('Failed to analyze speech');
+      if (error) throw error;
 
-      const analysisData = await response.json();
-      console.log('Analysis results:', analysisData);
-      setAnalysis(analysisData);
+      console.log('Analysis results:', data);
+      setAnalysis(data);
 
       toast({
         title: "Session Completed",

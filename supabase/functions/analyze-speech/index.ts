@@ -8,6 +8,7 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -18,24 +19,27 @@ serve(async (req) => {
     const sessionId = formData.get('sessionId') as string;
     const userId = formData.get('userId') as string;
 
+    console.log('Received audio file and session data:', { sessionId, userId });
+
     // Initialize OpenAI
     const configuration = new Configuration({
       apiKey: Deno.env.get('OPENAI_API_KEY'),
     });
     const openai = new OpenAIApi(configuration);
 
-    // Transcribe audio using Whisper
+    console.log('Transcribing audio with Whisper...');
     const transcriptionResponse = await openai.createTranscription(
       audioFile,
       'whisper-1'
     );
 
     const transcription = transcriptionResponse.data.text;
-    console.log('Transcription:', transcription);
+    console.log('Transcription completed:', transcription);
 
     // Analyze transcription with GPT-4
+    console.log('Analyzing transcription with GPT-4...');
     const completion = await openai.createChatCompletion({
-      model: "gpt-4",
+      model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
@@ -61,6 +65,7 @@ serve(async (req) => {
     });
 
     const analysis = JSON.parse(completion.data.choices[0].message.content);
+    console.log('Analysis completed:', analysis);
 
     // Store analysis in Supabase
     const supabaseClient = createClient(
@@ -81,7 +86,10 @@ serve(async (req) => {
         suggestions: analysis.suggestions
       });
 
-    if (insertError) throw insertError;
+    if (insertError) {
+      console.error('Error inserting analysis:', insertError);
+      throw insertError;
+    }
 
     return new Response(JSON.stringify(analysis), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
