@@ -19,14 +19,14 @@ serve(async (req) => {
     const formData = await req.formData();
     const images = formData.getAll('images');
     
-    console.log(`Analyzing ${images.length} gesture frames`);
+    console.log(`Processing ${images.length} gesture frames`);
 
     const analyses = await Promise.all(images.map(async (image: File, index) => {
       const base64Image = await image.arrayBuffer().then(buffer => 
         btoa(String.fromCharCode(...new Uint8Array(buffer)))
       );
 
-      console.log(`Analyzing frame ${index + 1} with OpenAI Vision...`);
+      console.log(`Sending frame ${index + 1} to OpenAI Vision...`);
       
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -43,12 +43,11 @@ serve(async (req) => {
               Focus on: posture, hand gestures, facial expressions, eye contact, and overall stage presence.
               Provide detailed analysis in JSON format with these fields:
               {
-                "timestamp": string (ISO date),
-                "gestureType": string (pointing/waving/openPalm/other),
-                "description": string (detailed analysis),
-                "confidence": number (0-100),
-                "impact": string (positive/negative/neutral),
-                "suggestions": string[]
+                "gestureType": "pointing|waving|openPalm|other",
+                "description": "detailed analysis of the gesture and its impact",
+                "confidence": number between 0-100,
+                "impact": "positive|negative|neutral",
+                "suggestions": ["array of specific improvements"]
               }`
             },
             {
@@ -56,7 +55,7 @@ serve(async (req) => {
               content: [
                 { 
                   type: 'text', 
-                  text: `Analyze this presenter's body language and facial expressions in detail.` 
+                  text: 'Analyze this presenter\'s body language and facial expressions in detail.' 
                 },
                 {
                   type: 'image_url',
@@ -70,9 +69,20 @@ serve(async (req) => {
         })
       });
 
+      if (!response.ok) {
+        const error = await response.text();
+        console.error(`OpenAI API error for frame ${index + 1}:`, error);
+        throw new Error(`OpenAI API error: ${error}`);
+      }
+
       const data = await response.json();
       console.log(`Received OpenAI response for frame ${index + 1}:`, data);
       
+      if (!data.choices?.[0]?.message?.content) {
+        console.error(`Invalid response format for frame ${index + 1}:`, data);
+        throw new Error('Invalid response format from OpenAI');
+      }
+
       const analysis = JSON.parse(data.choices[0].message.content);
       analysis.timestamp = new Date().toISOString();
 
