@@ -1,10 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 
 const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
-const supabaseUrl = Deno.env.get('SUPABASE_URL');
-const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -20,40 +17,16 @@ serve(async (req) => {
     console.log('Starting gesture analysis...');
     const formData = await req.formData();
     const images = formData.getAll('images');
-    const sessionId = formData.get('sessionId');
     
-    console.log(`Analyzing ${images.length} gesture frames for session ${sessionId}`);
-
-    // Initialize Supabase client for storage operations
-    const supabase = createClient(supabaseUrl!, supabaseServiceKey!);
+    console.log(`Analyzing ${images.length} gesture frames`);
 
     const analyses = await Promise.all(images.map(async (image: File, index) => {
-      // Upload image to Supabase Storage
-      const timestamp = new Date().toISOString();
-      const fileName = `gesture-${sessionId}-${timestamp}-${index}.jpg`;
-      
-      console.log(`Uploading frame ${index + 1} as ${fileName}`);
-      
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('slides')
-        .upload(fileName, image);
-
-      if (uploadError) {
-        console.error('Error uploading image:', uploadError);
-        throw uploadError;
-      }
-
-      // Get public URL for the uploaded image
-      const { data: { publicUrl } } = supabase.storage
-        .from('slides')
-        .getPublicUrl(fileName);
-
-      console.log(`Frame ${index + 1} uploaded successfully, analyzing...`);
-
       const base64Image = await image.arrayBuffer().then(buffer => 
         btoa(String.fromCharCode(...new Uint8Array(buffer)))
       );
 
+      console.log(`Analyzing frame ${index + 1} with OpenAI Vision...`);
+      
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -65,16 +38,16 @@ serve(async (req) => {
           messages: [
             {
               role: 'system',
-              content: `You are an expert presentation coach analyzing gestures and body language.
+              content: `You are an expert presentation coach analyzing body language and facial expressions for a TED-style talk.
+              Focus on: posture, hand gestures, facial expressions, eye contact, and overall stage presence.
               Provide detailed analysis in JSON format with these fields:
               {
                 "timestamp": string (ISO date),
-                "gestureType": string,
+                "gestureType": string (pointing/waving/openPalm/other),
                 "description": string (detailed analysis),
                 "confidence": number (0-100),
                 "impact": string (positive/negative/neutral),
-                "suggestions": string[],
-                "imageUrl": string
+                "suggestions": string[]
               }`
             },
             {
@@ -82,7 +55,7 @@ serve(async (req) => {
               content: [
                 { 
                   type: 'text', 
-                  text: `Analyze this presenter's body language and gestures in detail.` 
+                  text: `Analyze this presenter's body language and facial expressions in detail.` 
                 },
                 {
                   type: 'image_url',
@@ -98,87 +71,43 @@ serve(async (req) => {
 
       const data = await response.json();
       const analysis = JSON.parse(data.choices[0].message.content);
-      analysis.imageUrl = publicUrl;
-      analysis.timestamp = timestamp;
+      analysis.timestamp = new Date().toISOString();
 
       console.log(`Analysis completed for frame ${index + 1}:`, analysis);
       return analysis;
     }));
 
-    // Generate comprehensive summary
-    console.log('Generating comprehensive analysis summary...');
-    const summaryResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'system',
-            content: `You are an expert presentation coach. Analyze the sequence of gestures and provide:
-            1. Overall effectiveness patterns
-            2. Specific strengths and areas for improvement
-            3. Detailed recommendations
-            Return the analysis in this JSON format:
-            {
-              "overallAssessment": string,
-              "gesturePatterns": string[],
-              "strengths": string[],
-              "improvements": string[],
-              "recommendations": string[]
-            }`
-          },
-          {
-            role: 'user',
-            content: `Based on these sequential analyses, provide a comprehensive evaluation:\n\n${JSON.stringify(analyses, null, 2)}`
-          }
-        ]
-      })
-    });
-
-    const summaryData = await summaryResponse.json();
-    const summary = JSON.parse(summaryData.choices[0].message.content);
-
-    console.log('Analysis summary generated:', summary);
-
-    // Calculate metrics
+    // Calculate metrics based on analyses
     const metrics = {
-      gesturesPerMinute: Math.round((analyses.length * (60 / 5)) * 10) / 10,
+      gesturesPerMinute: analyses.length * (60 / 5), // Assuming 5-second intervals
       gestureTypes: {
         pointing: 0,
         waving: 0,
         openPalm: 0,
         other: 0
       },
-      smoothnessScore: 7.5,
-      gestureToSpeechRatio: 0.8,
-      aiFeedback: summary.overallAssessment
+      smoothnessScore: 7.5, // Default score
+      gestureToSpeechRatio: 0.8, // Default ratio
+      aiFeedback: null,
+      screenshots: [],
+      analysis: {}
     };
 
     // Update gesture types based on analysis
-    analyses.forEach(analysis => {
+    analyses.forEach((analysis, index) => {
       const type = analysis.gestureType.toLowerCase();
-      if (type.includes('point')) metrics.gestureTypes.pointing++;
-      else if (type.includes('wave')) metrics.gestureTypes.waving++;
-      else if (type.includes('open') && type.includes('palm')) metrics.gestureTypes.openPalm++;
-      else metrics.gestureTypes.other++;
+      if (metrics.gestureTypes.hasOwnProperty(type)) {
+        metrics.gestureTypes[type]++;
+      } else {
+        metrics.gestureTypes.other++;
+      }
+      metrics.analysis[index] = analysis;
     });
 
-    const result = {
-      metrics,
-      gestureAnalysis: {
-        frames: analyses,
-        summary
-      }
-    };
-
-    console.log('Analysis completed successfully');
+    console.log('Final metrics calculated:', metrics);
 
     return new Response(
-      JSON.stringify(result),
+      JSON.stringify({ metrics }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {

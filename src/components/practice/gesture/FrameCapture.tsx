@@ -14,7 +14,7 @@ export const FrameCapture = ({
   stream, 
   error, 
   onFrame,
-  captureInterval = 3000 
+  captureInterval = 5000 // Capture every 5 seconds
 }: FrameCaptureProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
