@@ -1,7 +1,10 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 
 const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+const supabaseUrl = Deno.env.get('SUPABASE_URL');
+const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -14,12 +17,39 @@ serve(async (req) => {
   }
 
   try {
+    console.log('Starting gesture analysis...');
     const formData = await req.formData();
     const images = formData.getAll('images');
+    const sessionId = formData.get('sessionId');
     
-    console.log('Analyzing gestures from', images.length, 'images');
+    console.log(`Analyzing ${images.length} gesture frames for session ${sessionId}`);
+
+    // Initialize Supabase client for storage operations
+    const supabase = createClient(supabaseUrl!, supabaseServiceKey!);
 
     const analyses = await Promise.all(images.map(async (image: File, index) => {
+      // Upload image to Supabase Storage
+      const timestamp = new Date().toISOString();
+      const fileName = `gesture-${sessionId}-${timestamp}-${index}.jpg`;
+      
+      console.log(`Uploading frame ${index + 1} as ${fileName}`);
+      
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('slides')
+        .upload(fileName, image);
+
+      if (uploadError) {
+        console.error('Error uploading image:', uploadError);
+        throw uploadError;
+      }
+
+      // Get public URL for the uploaded image
+      const { data: { publicUrl } } = supabase.storage
+        .from('slides')
+        .getPublicUrl(fileName);
+
+      console.log(`Frame ${index + 1} uploaded successfully, analyzing...`);
+
       const base64Image = await image.arrayBuffer().then(buffer => 
         btoa(String.fromCharCode(...new Uint8Array(buffer)))
       );
@@ -35,23 +65,24 @@ serve(async (req) => {
           messages: [
             {
               role: 'system',
-              content: `You are an expert in analyzing presentation body language and gestures. 
-              You're watching a presenter giving a talk in front of an audience.
-              Focus on analyzing:
-              1. Hand gestures and their effectiveness
-              2. Body posture and stance
-              3. Stage presence and movement
-              4. Engagement with the audience
-              5. Overall confidence indicators
-              
-              Provide specific observations about these aspects and how they impact the presentation's effectiveness.`
+              content: `You are an expert presentation coach analyzing gestures and body language.
+              Provide detailed analysis in JSON format with these fields:
+              {
+                "timestamp": string (ISO date),
+                "gestureType": string,
+                "description": string (detailed analysis),
+                "confidence": number (0-100),
+                "impact": string (positive/negative/neutral),
+                "suggestions": string[],
+                "imageUrl": string
+              }`
             },
             {
               role: 'user',
               content: [
                 { 
                   type: 'text', 
-                  text: `This is frame ${index + 1} of a presentation. Analyze the presenter's body language and gestures, considering this is a live presentation in front of an audience.` 
+                  text: `Analyze this presenter's body language and gestures in detail.` 
                 },
                 {
                   type: 'image_url',
@@ -66,11 +97,16 @@ serve(async (req) => {
       });
 
       const data = await response.json();
-      console.log('Analysis completed for image', index + 1);
-      return data.choices[0].message.content;
+      const analysis = JSON.parse(data.choices[0].message.content);
+      analysis.imageUrl = publicUrl;
+      analysis.timestamp = timestamp;
+
+      console.log(`Analysis completed for frame ${index + 1}:`, analysis);
+      return analysis;
     }));
 
-    // Aggregate all analyses into a comprehensive summary
+    // Generate comprehensive summary
+    console.log('Generating comprehensive analysis summary...');
     const summaryResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -82,30 +118,35 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: `You are an expert presentation coach analyzing a sequence of images from a live presentation.
-            Create a comprehensive analysis that includes:
-            1. Overall gesture patterns and frequency
-            2. Consistency in body language
-            3. Stage presence and audience engagement
-            4. Areas of strength
-            5. Specific suggestions for improvement
-            
-            Format the response as structured metrics and actionable feedback.`
+            content: `You are an expert presentation coach. Analyze the sequence of gestures and provide:
+            1. Overall effectiveness patterns
+            2. Specific strengths and areas for improvement
+            3. Detailed recommendations
+            Return the analysis in this JSON format:
+            {
+              "overallAssessment": string,
+              "gesturePatterns": string[],
+              "strengths": string[],
+              "improvements": string[],
+              "recommendations": string[]
+            }`
           },
           {
             role: 'user',
-            content: `Based on these sequential analyses of the presentation, provide a comprehensive evaluation and metrics:\n\n${analyses.join('\n\n')}`
+            content: `Based on these sequential analyses, provide a comprehensive evaluation:\n\n${JSON.stringify(analyses, null, 2)}`
           }
         ]
       })
     });
 
     const summaryData = await summaryResponse.json();
-    const summary = summaryData.choices[0].message.content;
+    const summary = JSON.parse(summaryData.choices[0].message.content);
 
-    // Calculate metrics based on the analyses
+    console.log('Analysis summary generated:', summary);
+
+    // Calculate metrics
     const metrics = {
-      gesturesPerMinute: Math.round((analyses.length * (60 / 5)) * 10) / 10, // 5 seconds between captures
+      gesturesPerMinute: Math.round((analyses.length * (60 / 5)) * 10) / 10,
       gestureTypes: {
         pointing: 0,
         waving: 0,
@@ -114,24 +155,30 @@ serve(async (req) => {
       },
       smoothnessScore: 7.5,
       gestureToSpeechRatio: 0.8,
-      aiFeedback: summary
+      aiFeedback: summary.overallAssessment
     };
 
-    // Update gesture types based on analysis content
+    // Update gesture types based on analysis
     analyses.forEach(analysis => {
-      if (analysis.toLowerCase().includes('pointing')) metrics.gestureTypes.pointing++;
-      if (analysis.toLowerCase().includes('wave')) metrics.gestureTypes.waving++;
-      if (analysis.toLowerCase().includes('open palm')) metrics.gestureTypes.openPalm++;
-      if (analysis.toLowerCase().includes('gesture') && 
-          !analysis.toLowerCase().includes('pointing') && 
-          !analysis.toLowerCase().includes('wave') && 
-          !analysis.toLowerCase().includes('open palm')) {
-        metrics.gestureTypes.other++;
-      }
+      const type = analysis.gestureType.toLowerCase();
+      if (type.includes('point')) metrics.gestureTypes.pointing++;
+      else if (type.includes('wave')) metrics.gestureTypes.waving++;
+      else if (type.includes('open') && type.includes('palm')) metrics.gestureTypes.openPalm++;
+      else metrics.gestureTypes.other++;
     });
 
+    const result = {
+      metrics,
+      gestureAnalysis: {
+        frames: analyses,
+        summary
+      }
+    };
+
+    console.log('Analysis completed successfully');
+
     return new Response(
-      JSON.stringify({ analyses, summary, metrics }),
+      JSON.stringify(result),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {

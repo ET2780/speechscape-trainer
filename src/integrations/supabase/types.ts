@@ -12,10 +12,15 @@ export type Database = {
       performance_reports: {
         Row: {
           created_at: string
+          expression_quotes: string[] | null
           filler_word_count: number | null
+          gesture_analysis: Json | null
+          gesture_screenshots: string[] | null
           id: string
           overall_score: number | null
+          rephrasing_suggestions: Json | null
           session_id: string
+          speech_analysis: Json | null
           suggestions: string[] | null
           tone_confidence: number | null
           tone_energy: number | null
@@ -25,10 +30,15 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          expression_quotes?: string[] | null
           filler_word_count?: number | null
+          gesture_analysis?: Json | null
+          gesture_screenshots?: string[] | null
           id?: string
           overall_score?: number | null
+          rephrasing_suggestions?: Json | null
           session_id: string
+          speech_analysis?: Json | null
           suggestions?: string[] | null
           tone_confidence?: number | null
           tone_energy?: number | null
@@ -38,10 +48,15 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          expression_quotes?: string[] | null
           filler_word_count?: number | null
+          gesture_analysis?: Json | null
+          gesture_screenshots?: string[] | null
           id?: string
           overall_score?: number | null
+          rephrasing_suggestions?: Json | null
           session_id?: string
+          speech_analysis?: Json | null
           suggestions?: string[] | null
           tone_confidence?: number | null
           tone_energy?: number | null
