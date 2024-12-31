@@ -8,12 +8,16 @@ export const useSessionAnalysis = () => {
   const [progress, setProgress] = useState(0);
   const { toast } = useToast();
 
-  const analyzeSession = async (audioBlob: Blob, sessionId: string) => {
-    console.log('Starting session analysis...', { blobSize: audioBlob.size });
+  const analyzeSession = async (audioChunks: Blob[], sessionId: string) => {
+    console.log('Starting session analysis...', { chunksCount: audioChunks.length });
     setIsAnalyzing(true);
     setProgress(0);
 
     try {
+      // Combine all audio chunks into a single blob
+      const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+      console.log('Combined audio blob size:', audioBlob.size);
+
       const formData = new FormData();
       formData.append('audio', audioBlob, 'recording.webm');
       formData.append('sessionId', sessionId);

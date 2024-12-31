@@ -67,9 +67,10 @@ serve(async (req) => {
       fullTranscription = transcriptionResponse.data.text;
     }
 
-    console.log('Transcription completed, analyzing with GPT-4...');
+    console.log('Transcription completed:', fullTranscription.substring(0, 100) + '...');
+
     const completion = await openai.createChatCompletion({
-      model: "gpt-4",
+      model: "gpt-4o-mini",
       messages: [
         {
           role: "system",

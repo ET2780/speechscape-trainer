@@ -55,16 +55,14 @@ export const PracticeSession: React.FC<PracticeSessionProps> = ({
   }, [isSessionActive]);
 
   const handleEndSession = async () => {
-    console.log('Ending session...');
+    console.log('Ending session...', { audioChunksCount: audioChunks.length });
     setIsSessionActive(false);
-
     stopRecording();
     stopCamera();
     stopTracking();
 
     try {
-      const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-      await analyzeSession(audioBlob, crypto.randomUUID());
+      await analyzeSession(audioChunks, crypto.randomUUID());
       setShowReport(true);
     } catch (error) {
       console.error('Failed to analyze session:', error);

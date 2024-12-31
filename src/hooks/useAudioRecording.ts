@@ -31,18 +31,18 @@ export const useAudioRecording = () => {
         if (e.data.size > 0) {
           chunks.push(e.data);
           console.log(`Recorded chunk: ${e.data.size} bytes`);
+          setAudioChunks(prevChunks => [...prevChunks, e.data]); // Update chunks immediately
         }
       };
 
       mediaRecorder.onstop = () => {
-        console.log('Recording stopped, processing chunks...');
+        console.log('Recording stopped, total chunks:', chunks.length);
         setAudioChunks(chunks);
       };
 
-      // Request data every 5 seconds to handle longer recordings
-      mediaRecorder.start(5000);
+      mediaRecorder.start(5000); // Request data every 5 seconds
       setIsRecording(true);
-      console.log('Recording started with optimized settings');
+      console.log('Recording started successfully');
     } catch (error) {
       console.error('Error accessing microphone:', error);
       toast({
