@@ -7,11 +7,8 @@ import { generateInterviewQuestions } from "@/utils/openai";
 import { PracticeTypeSelector } from "@/components/practice/PracticeTypeSelector";
 import { SlideUpload } from "@/components/practice/SlideUpload";
 import { InterviewSetup } from "@/components/practice/InterviewSetup";
-import { PresentationEnvironment } from "@/components/practice/PresentationEnvironment";
-import { InterviewEnvironment } from "@/components/practice/InterviewEnvironment";
 import { GestureProvider } from "@/contexts/GestureContext";
-import { GestureTracker } from "@/components/practice/GestureTracker";
-import { GestureMetrics } from "@/components/practice/GestureMetrics";
+import { PracticeSession } from "@/components/practice/PracticeSession";
 
 const Practice = () => {
   const navigate = useNavigate();
@@ -150,17 +147,12 @@ const Practice = () => {
               </Button>
             </div>
           ) : (
-            <div className="space-y-6">
-              <div className="w-full aspect-video bg-gray-50 rounded-lg shadow-lg overflow-hidden">
-                {practiceType === 'presentation' ? (
-                  <PresentationEnvironment slideUrl={slideUrl} />
-                ) : (
-                  <InterviewEnvironment />
-                )}
-              </div>
-              <GestureTracker />
-              <GestureMetrics />
-            </div>
+            <PracticeSession 
+              practiceType={practiceType} 
+              slideUrl={slideUrl}
+              jobType={jobType}
+              industry={industry}
+            />
           )}
         </div>
       </div>
