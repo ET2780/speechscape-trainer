@@ -30,43 +30,6 @@ export type Database = {
         }
         Relationships: []
       }
-      practice_sessions: {
-        Row: {
-          id: string
-          user_id: string
-          practice_type: string
-          job_type: string | null
-          industry: string | null
-          slide_url: string | null
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          practice_type: string
-          job_type?: string | null
-          industry?: string | null
-          slide_url?: string | null
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          practice_type?: string
-          job_type?: string | null
-          industry?: string | null
-          slide_url?: string | null
-          created_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "practice_sessions_user_id_fkey"
-            columns: ["user_id"]
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
     }
     Views: {
       [_ in never]: never
