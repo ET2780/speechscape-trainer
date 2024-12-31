@@ -9,64 +9,82 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  console.log('Received request to analyze-gestures function');
+  
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
+    console.log('Handling CORS preflight request');
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
     console.log('Starting gesture analysis...');
+    if (!openAIApiKey) {
+      console.error('OpenAI API key not found in environment variables');
+      throw new Error('OpenAI API key not configured');
+    }
+
     const formData = await req.formData();
     const images = formData.getAll('images');
     
     console.log(`Processing ${images.length} gesture frames`);
+    if (images.length === 0) {
+      console.error('No images received in request');
+      throw new Error('No images provided for analysis');
+    }
 
     const analyses = await Promise.all(images.map(async (image: File, index) => {
+      console.log(`Processing image ${index + 1}, size: ${image.size} bytes`);
+      
       const base64Image = await image.arrayBuffer().then(buffer => 
         btoa(String.fromCharCode(...new Uint8Array(buffer)))
       );
+      console.log(`Successfully converted image ${index + 1} to base64`);
 
       console.log(`Sending frame ${index + 1} to OpenAI Vision...`);
       
+      const requestBody = {
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: `You are an expert presentation coach analyzing body language and facial expressions for a TED-style talk.
+            Focus on: posture, hand gestures, facial expressions, eye contact, and overall stage presence.
+            Provide detailed analysis in JSON format with these fields:
+            {
+              "gestureType": "pointing|waving|openPalm|other",
+              "description": "detailed analysis of the gesture and its impact",
+              "confidence": number between 0-100,
+              "impact": "positive|negative|neutral",
+              "suggestions": ["array of specific improvements"]
+            }`
+          },
+          {
+            role: 'user',
+            content: [
+              { 
+                type: 'text', 
+                text: 'Analyze this presenter\'s body language and facial expressions in detail.' 
+              },
+              {
+                type: 'image_url',
+                image_url: {
+                  url: `data:image/jpeg;base64,${base64Image}`
+                }
+              }
+            ]
+          }
+        ]
+      };
+
+      console.log(`Sending request to OpenAI for frame ${index + 1}`);
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${openAIApiKey}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          model: 'gpt-4o-mini',
-          messages: [
-            {
-              role: 'system',
-              content: `You are an expert presentation coach analyzing body language and facial expressions for a TED-style talk.
-              Focus on: posture, hand gestures, facial expressions, eye contact, and overall stage presence.
-              Provide detailed analysis in JSON format with these fields:
-              {
-                "gestureType": "pointing|waving|openPalm|other",
-                "description": "detailed analysis of the gesture and its impact",
-                "confidence": number between 0-100,
-                "impact": "positive|negative|neutral",
-                "suggestions": ["array of specific improvements"]
-              }`
-            },
-            {
-              role: 'user',
-              content: [
-                { 
-                  type: 'text', 
-                  text: 'Analyze this presenter\'s body language and facial expressions in detail.' 
-                },
-                {
-                  type: 'image_url',
-                  image_url: {
-                    url: `data:image/jpeg;base64,${base64Image}`
-                  }
-                }
-              ]
-            }
-          ]
-        })
+        body: JSON.stringify(requestBody)
       });
 
       if (!response.ok) {

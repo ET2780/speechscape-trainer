@@ -9,14 +9,21 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  console.log('Received request to generate-gesture-feedback function');
+  
   if (req.method === 'OPTIONS') {
+    console.log('Handling CORS preflight request');
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
     console.log('Starting feedback generation...');
+    if (!openAIApiKey) {
+      console.error('OpenAI API key not found in environment variables');
+      throw new Error('OpenAI API key not configured');
+    }
+
     const { metrics } = await req.json();
-    
     console.log('Received metrics for feedback:', metrics);
     
     const prompt = `
