@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { CombinedAnalysis } from "@/types/analysis";
 
 export const useSessionAnalysis = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [analysis, setAnalysis] = useState<any>(null);
+  const [analysis, setAnalysis] = useState<CombinedAnalysis | null>(null);
   const [progress, setProgress] = useState(0);
   const { toast } = useToast();
 
@@ -36,8 +37,30 @@ export const useSessionAnalysis = () => {
         throw error;
       }
 
+      if (!data) {
+        throw new Error('No data received from analysis');
+      }
+
       console.log('Analysis results:', data);
-      setAnalysis(data);
+      
+      // Create combined analysis with default gesture metrics
+      const combinedAnalysis: CombinedAnalysis = {
+        speech: data,
+        gesture: {
+          gesturesPerMinute: 0,
+          gestureTypes: {
+            pointing: 0,
+            waving: 0,
+            openPalm: 0,
+            other: 0
+          },
+          smoothnessScore: 0,
+          gestureToSpeechRatio: 0,
+          aiFeedback: null
+        }
+      };
+
+      setAnalysis(combinedAnalysis);
       setProgress(100);
 
       toast({
@@ -45,12 +68,12 @@ export const useSessionAnalysis = () => {
         description: "Your practice session has been analyzed",
       });
 
-      return data;
+      return combinedAnalysis;
     } catch (error) {
       console.error('Error analyzing session:', error);
       toast({
         title: "Analysis Error",
-        description: "Failed to analyze your practice session",
+        description: error.message || "Failed to analyze your practice session",
         variant: "destructive",
       });
       throw error;

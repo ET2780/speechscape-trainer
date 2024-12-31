@@ -1,3 +1,4 @@
+import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { Configuration, OpenAIApi } from "https://esm.sh/openai@3.1.0";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.1.1';
@@ -35,100 +36,118 @@ serve(async (req) => {
     });
 
     // Initialize OpenAI
+    const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+    if (!openAIApiKey) {
+      throw new Error('OpenAI API key not configured');
+    }
+
     const configuration = new Configuration({
-      apiKey: Deno.env.get('OPENAI_API_KEY'),
+      apiKey: openAIApiKey,
     });
     const openai = new OpenAIApi(configuration);
 
     // Process audio in chunks if needed
     let fullTranscription = '';
-    if (audioFile.size > CHUNK_SIZE) {
-      console.log('Large file detected, processing in chunks...');
-      const chunks = Math.ceil(audioFile.size / CHUNK_SIZE);
-      
-      for (let i = 0; i < chunks; i++) {
-        const start = i * CHUNK_SIZE;
-        const end = Math.min(start + CHUNK_SIZE, audioFile.size);
-        const chunk = audioFile.slice(start, end, audioFile.type);
+    try {
+      if (audioFile.size > CHUNK_SIZE) {
+        console.log('Large file detected, processing in chunks...');
+        const chunks = Math.ceil(audioFile.size / CHUNK_SIZE);
         
-        console.log(`Processing chunk ${i + 1}/${chunks}`);
-        const chunkResponse = await openai.createTranscription(
-          chunk,
+        for (let i = 0; i < chunks; i++) {
+          const start = i * CHUNK_SIZE;
+          const end = Math.min(start + CHUNK_SIZE, audioFile.size);
+          const chunk = audioFile.slice(start, end, audioFile.type);
+          
+          console.log(`Processing chunk ${i + 1}/${chunks}`);
+          const chunkResponse = await openai.createTranscription(
+            chunk,
+            'whisper-1'
+          );
+          fullTranscription += chunkResponse.data.text + ' ';
+        }
+      } else {
+        console.log('Processing single file...');
+        const transcriptionResponse = await openai.createTranscription(
+          audioFile,
           'whisper-1'
         );
-        fullTranscription += chunkResponse.data.text + ' ';
+        fullTranscription = transcriptionResponse.data.text;
       }
-    } else {
-      console.log('Processing single file...');
-      const transcriptionResponse = await openai.createTranscription(
-        audioFile,
-        'whisper-1'
-      );
-      fullTranscription = transcriptionResponse.data.text;
+    } catch (error) {
+      console.error('Error during transcription:', error);
+      throw new Error(`Transcription failed: ${error.message}`);
     }
 
     console.log('Transcription completed:', fullTranscription.substring(0, 100) + '...');
 
-    const completion = await openai.createChatCompletion({
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "system",
-          content: `You are a speech analysis expert. Analyze the following transcription and provide:
-            1. Words per minute (based on average reading speed)
-            2. Count of filler words (um, uh, like, you know, etc.)
-            3. Tone analysis (confidence score 0-100, energy score 0-100)
-            4. Overall score (0-100)
-            5. Three specific suggestions for improvement
-            
-            Respond in JSON format with these keys:
-            {
-              "wordsPerMinute": number,
-              "fillerWordCount": number,
-              "toneConfidence": number,
-              "toneEnergy": number,
-              "overallScore": number,
-              "suggestions": string[]
-            }`
-        },
-        { role: "user", content: fullTranscription }
-      ],
-    });
-
-    const analysis = JSON.parse(completion.data.choices[0].message.content);
-    console.log('Analysis completed:', analysis);
-
-    // Store analysis in Supabase
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
-
-    const { error: insertError } = await supabaseClient
-      .from('performance_reports')
-      .insert({
-        session_id: sessionId,
-        user_id: userId,
-        words_per_minute: analysis.wordsPerMinute,
-        filler_word_count: analysis.fillerWordCount,
-        tone_confidence: analysis.toneConfidence,
-        tone_energy: analysis.toneEnergy,
-        overall_score: analysis.overallScore,
-        suggestions: analysis.suggestions
+    try {
+      const completion = await openai.createChatCompletion({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content: `You are a speech analysis expert. Analyze the following transcription and provide:
+              1. Words per minute (based on average reading speed)
+              2. Count of filler words (um, uh, like, you know, etc.)
+              3. Tone analysis (confidence score 0-100, energy score 0-100)
+              4. Overall score (0-100)
+              5. Three specific suggestions for improvement
+              
+              Respond in JSON format with these keys:
+              {
+                "wordsPerMinute": number,
+                "fillerWordCount": number,
+                "toneConfidence": number,
+                "toneEnergy": number,
+                "overallScore": number,
+                "suggestions": string[]
+              }`
+          },
+          { role: "user", content: fullTranscription }
+        ],
       });
 
-    if (insertError) {
-      console.error('Error inserting analysis:', insertError);
-      throw insertError;
-    }
+      const analysis = JSON.parse(completion.data.choices[0].message.content);
+      console.log('Analysis completed:', analysis);
 
-    return new Response(JSON.stringify(analysis), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+      // Store analysis in Supabase
+      const supabaseClient = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      );
+
+      const { error: insertError } = await supabaseClient
+        .from('performance_reports')
+        .insert({
+          session_id: sessionId,
+          user_id: userId,
+          words_per_minute: analysis.wordsPerMinute,
+          filler_word_count: analysis.fillerWordCount,
+          tone_confidence: analysis.toneConfidence,
+          tone_energy: analysis.toneEnergy,
+          overall_score: analysis.overallScore,
+          suggestions: analysis.suggestions
+        });
+
+      if (insertError) {
+        console.error('Error inserting analysis:', insertError);
+        throw insertError;
+      }
+
+      return new Response(JSON.stringify(analysis), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    } catch (error) {
+      console.error('Error during analysis or storage:', error);
+      throw new Error(`Analysis failed: ${error.message}`);
+    }
   } catch (error) {
     console.error('Error in analyze-speech function:', error);
     return new Response(
-      JSON.stringify({ error: error.message }), 
+      JSON.stringify({ 
+        error: error.message,
+        details: error.stack 
+      }), 
       { 
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
