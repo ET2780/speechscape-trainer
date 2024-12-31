@@ -9,6 +9,7 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -70,6 +71,8 @@ serve(async (req) => {
       });
 
       const data = await response.json();
+      console.log(`Received OpenAI response for frame ${index + 1}:`, data);
+      
       const analysis = JSON.parse(data.choices[0].message.content);
       analysis.timestamp = new Date().toISOString();
 

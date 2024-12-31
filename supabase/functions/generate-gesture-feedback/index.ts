@@ -14,7 +14,10 @@ serve(async (req) => {
   }
 
   try {
+    console.log('Starting feedback generation...');
     const { metrics } = await req.json();
+    
+    console.log('Received metrics for feedback:', metrics);
     
     const prompt = `
       As a public speaking coach, analyze these gesture metrics and provide specific, actionable feedback:
@@ -33,6 +36,8 @@ serve(async (req) => {
       
       Format as a short paragraph with clear, actionable suggestions.
     `;
+
+    console.log('Sending prompt to OpenAI:', prompt);
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -53,14 +58,17 @@ serve(async (req) => {
     });
 
     const data = await response.json();
-    return new Response(JSON.stringify({ feedback: data.choices[0].message.content }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    console.log('Received feedback from OpenAI:', data);
+
+    return new Response(
+      JSON.stringify({ feedback: data.choices[0].message.content }), 
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
   } catch (error) {
     console.error('Error generating gesture feedback:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return new Response(
+      JSON.stringify({ error: error.message }), 
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
   }
 });
