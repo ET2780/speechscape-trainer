@@ -8,8 +8,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const CHUNK_SIZE = 25 * 1024 * 1024; // 25MB chunks for Whisper API
-
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -23,21 +21,31 @@ serve(async (req) => {
     const sessionId = formData.get('sessionId') as string;
     const userId = formData.get('userId') as string;
 
-    if (!audioFile || !sessionId || !userId) {
-      console.error('Missing required fields:', { audioFile: !!audioFile, sessionId, userId });
-      throw new Error('Missing required fields');
+    // Validate required fields
+    if (!audioFile) {
+      console.error('Missing audio file');
+      throw new Error('Audio file is required');
+    }
+    if (!sessionId) {
+      console.error('Missing sessionId');
+      throw new Error('Session ID is required');
+    }
+    if (!userId) {
+      console.error('Missing userId');
+      throw new Error('User ID is required');
     }
 
-    console.log('Received audio file:', {
-      size: audioFile.size,
-      type: audioFile.type,
+    console.log('Received request:', {
+      audioFileSize: audioFile.size,
+      audioFileType: audioFile.type,
       sessionId,
       userId
     });
 
-    // Initialize OpenAI
+    // Check OpenAI API key
     const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
     if (!openAIApiKey) {
+      console.error('OpenAI API key not configured');
       throw new Error('OpenAI API key not configured');
     }
 
@@ -47,7 +55,9 @@ serve(async (req) => {
     const openai = new OpenAIApi(configuration);
 
     // Process audio in chunks if needed
+    const CHUNK_SIZE = 25 * 1024 * 1024; // 25MB chunks for Whisper API
     let fullTranscription = '';
+
     try {
       if (audioFile.size > CHUNK_SIZE) {
         console.log('Large file detected, processing in chunks...');
@@ -58,12 +68,13 @@ serve(async (req) => {
           const end = Math.min(start + CHUNK_SIZE, audioFile.size);
           const chunk = audioFile.slice(start, end, audioFile.type);
           
-          console.log(`Processing chunk ${i + 1}/${chunks}`);
+          console.log(`Processing chunk ${i + 1}/${chunks}, size: ${chunk.size} bytes`);
           const chunkResponse = await openai.createTranscription(
             chunk,
             'whisper-1'
           );
           fullTranscription += chunkResponse.data.text + ' ';
+          console.log(`Chunk ${i + 1} transcribed successfully`);
         }
       } else {
         console.log('Processing single file...');
@@ -72,15 +83,18 @@ serve(async (req) => {
           'whisper-1'
         );
         fullTranscription = transcriptionResponse.data.text;
+        console.log('Single file transcribed successfully');
       }
     } catch (error) {
       console.error('Error during transcription:', error);
       throw new Error(`Transcription failed: ${error.message}`);
     }
 
-    console.log('Transcription completed:', fullTranscription.substring(0, 100) + '...');
+    console.log('Transcription completed, length:', fullTranscription.length);
+    console.log('Sample of transcription:', fullTranscription.substring(0, 100));
 
     try {
+      console.log('Starting GPT analysis...');
       const completion = await openai.createChatCompletion({
         model: "gpt-4o-mini",
         messages: [
@@ -108,7 +122,7 @@ serve(async (req) => {
       });
 
       const analysis = JSON.parse(completion.data.choices[0].message.content);
-      console.log('Analysis completed:', analysis);
+      console.log('GPT analysis completed:', analysis);
 
       // Store analysis in Supabase
       const supabaseClient = createClient(
@@ -116,6 +130,7 @@ serve(async (req) => {
         Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
       );
 
+      console.log('Storing analysis in database...');
       const { error: insertError } = await supabaseClient
         .from('performance_reports')
         .insert({
@@ -134,6 +149,7 @@ serve(async (req) => {
         throw insertError;
       }
 
+      console.log('Analysis stored successfully');
       return new Response(JSON.stringify(analysis), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
