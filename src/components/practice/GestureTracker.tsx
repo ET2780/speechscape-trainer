@@ -6,8 +6,51 @@ import { AlertCircle } from "lucide-react";
 
 export const GestureTracker = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const { isTracking } = useGesture();
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const { isTracking, updateGestureData } = useGesture();
   const [error, setError] = useState<string | null>(null);
+  const captureIntervalRef = useRef<number>();
+
+  const captureFrame = () => {
+    if (!videoRef.current || !canvasRef.current) return;
+
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    const context = canvas.getContext('2d');
+    
+    if (!context) return;
+
+    // Set canvas dimensions to match video
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    
+    // Draw the current video frame
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    // Convert to blob and analyze
+    canvas.toBlob(async (blob) => {
+      if (!blob) return;
+      console.log('Captured frame:', blob.size, 'bytes');
+      
+      try {
+        const formData = new FormData();
+        formData.append('images', blob, 'frame.jpg');
+
+        const { data, error } = await supabase.functions.invoke('analyze-gestures', {
+          body: formData,
+        });
+
+        if (error) throw error;
+        console.log('Gesture analysis received:', data);
+        
+        if (data.metrics) {
+          updateGestureData(data.metrics);
+        }
+      } catch (error) {
+        console.error('Error analyzing frame:', error);
+      }
+    }, 'image/jpeg', 0.8);
+  };
 
   useEffect(() => {
     if (!isTracking || !videoRef.current) return;
@@ -26,6 +69,9 @@ export const GestureTracker = () => {
         if (videoRef.current) {
           console.log('Camera access granted, setting up video stream');
           videoRef.current.srcObject = stream;
+          
+          // Start capturing frames every 5 seconds
+          captureIntervalRef.current = setInterval(captureFrame, 5000);
         }
       } catch (error) {
         console.error('Error accessing camera:', error);
@@ -36,7 +82,10 @@ export const GestureTracker = () => {
     startVideo();
 
     return () => {
-      console.log('Cleaning up video stream');
+      console.log('Cleaning up video stream and capture interval');
+      if (captureIntervalRef.current) {
+        clearInterval(captureIntervalRef.current);
+      }
       const stream = videoRef.current?.srcObject as MediaStream;
       stream?.getTracks().forEach(track => {
         track.stop();
@@ -61,10 +110,11 @@ export const GestureTracker = () => {
             autoPlay
             playsInline
             muted
-            className="hidden" // Hide video but keep it running for gesture analysis
+            className="hidden"
           />
+          <canvas ref={canvasRef} className="hidden" />
           <div className="p-4 text-center text-sm text-muted-foreground">
-            Gesture tracking active
+            Gesture analysis active - capturing frames every 5 seconds
           </div>
         </div>
       )}
