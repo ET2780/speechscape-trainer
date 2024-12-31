@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useGesture } from '@/contexts/GestureContext';
 import { useMediaStream } from '@/hooks/useMediaStream';
 import { FrameCapture } from './gesture/FrameCapture';
@@ -22,18 +22,25 @@ export const GestureTracker = () => {
 
   if (!isTracking) return null;
 
+  // Create an analyzer instance
+  const analyzer = {
+    processFrame: async (blob: Blob) => {
+      try {
+        const metrics = await fetch(blob);
+        updateGestureData(metrics);
+      } catch (err) {
+        console.error('Error analyzing frame:', err);
+        setAnalysisError('Failed to analyze gestures');
+      }
+    }
+  };
+
   return (
     <>
       <FrameCapture
         stream={stream}
         error={error || analysisError}
-        onFrame={(blob) => {
-          const analyzer = new GestureAnalyzer({
-            onAnalysis: updateGestureData,
-            onError: setAnalysisError
-          });
-          analyzer.processFrame(blob);
-        }}
+        onFrame={analyzer.processFrame}
       />
     </>
   );
