@@ -1,11 +1,14 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
+import { Button } from '@/components/ui/button';
 import { useGesture } from '@/contexts/GestureContext';
+import { AlertCircle } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export const GestureMetrics = () => {
-  const { gestureMetrics, isTracking } = useGesture();
+  const { gestureMetrics, isTracking, aiFeedback, generateFeedback } = useGesture();
 
-  if (!isTracking) return null;
+  if (!isTracking && !aiFeedback) return null;
 
   const totalGestures = Object.values(gestureMetrics.gestureTypes).reduce((a, b) => a + b, 0);
 
@@ -56,6 +59,27 @@ export const GestureMetrics = () => {
             ))}
           </div>
         </div>
+
+        {!isTracking && (
+          <div className="pt-4">
+            <Button 
+              onClick={generateFeedback} 
+              className="w-full"
+              disabled={isTracking}
+            >
+              Generate AI Feedback
+            </Button>
+          </div>
+        )}
+
+        {aiFeedback && (
+          <Alert className="mt-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription className="mt-2">
+              {aiFeedback}
+            </AlertDescription>
+          </Alert>
+        )}
       </CardContent>
     </Card>
   );
