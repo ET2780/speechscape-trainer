@@ -45,9 +45,13 @@ const Practice = () => {
   const handleStartPractice = async () => {
     try {
       setIsLoading(true);
-      const user = (await supabase.auth.getUser()).data.user;
       
-      if (!user) {
+      // Get user and check authentication
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      console.log("Auth check:", { user, userError });
+      
+      if (!user || userError) {
+        console.error("Authentication error:", userError);
         toast({
           title: "Authentication required",
           description: "Please sign in to continue",
@@ -61,16 +65,28 @@ const Practice = () => {
         const fileExt = file.name.split('.').pop();
         const filePath = `${user.id}/${crypto.randomUUID()}.${fileExt}`;
         
-        const { error: uploadError } = await supabase.storage
+        console.log("Attempting file upload:", { filePath, fileType: file.type });
+        
+        const { data: uploadData, error: uploadError } = await supabase.storage
           .from('slides')
-          .upload(filePath, file);
+          .upload(filePath, file, {
+            cacheControl: '3600',
+            upsert: false
+          });
 
-        if (uploadError) throw uploadError;
+        console.log("Upload response:", { uploadData, uploadError });
+
+        if (uploadError) {
+          console.error("Upload error:", uploadError);
+          throw uploadError;
+        }
 
         const { data: { publicUrl } } = supabase.storage
           .from('slides')
           .getPublicUrl(filePath);
           
+        console.log("Generated public URL:", publicUrl);
+        
         uploadedSlideUrl = publicUrl;
         setSlideUrl(uploadedSlideUrl);
       }
@@ -80,7 +96,15 @@ const Practice = () => {
         questions = await generateInterviewQuestions(jobType, industry);
       }
 
-      const { error } = await supabase
+      console.log("Creating practice session:", {
+        userId: user.id,
+        practiceType,
+        jobType,
+        industry,
+        slideUrl: uploadedSlideUrl
+      });
+
+      const { error: sessionError } = await supabase
         .from('practice_sessions')
         .insert({
           user_id: user.id,
@@ -90,7 +114,10 @@ const Practice = () => {
           slide_url: uploadedSlideUrl || null,
         });
 
-      if (error) throw error;
+      if (sessionError) {
+        console.error("Session creation error:", sessionError);
+        throw sessionError;
+      }
 
       toast({
         title: "Session started",
@@ -102,7 +129,7 @@ const Practice = () => {
       console.error('Error setting up practice:', error);
       toast({
         title: "Error",
-        description: "Failed to set up practice session",
+        description: error.message || "Failed to set up practice session",
         variant: "destructive",
       });
     } finally {
