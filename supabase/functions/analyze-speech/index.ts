@@ -7,8 +7,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const CHUNK_SIZE = 25 * 1024 * 1024; // 25MB chunks for Whisper API
+
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -19,7 +20,12 @@ serve(async (req) => {
     const sessionId = formData.get('sessionId') as string;
     const userId = formData.get('userId') as string;
 
-    console.log('Received audio file and session data:', { sessionId, userId });
+    console.log('Received audio file:', {
+      size: audioFile.size,
+      type: audioFile.type,
+      sessionId,
+      userId
+    });
 
     // Initialize OpenAI
     const configuration = new Configuration({
@@ -27,17 +33,34 @@ serve(async (req) => {
     });
     const openai = new OpenAIApi(configuration);
 
-    console.log('Transcribing audio with Whisper...');
-    const transcriptionResponse = await openai.createTranscription(
-      audioFile,
-      'whisper-1'
-    );
+    // Process audio in chunks if needed
+    let fullTranscription = '';
+    if (audioFile.size > CHUNK_SIZE) {
+      console.log('Large file detected, processing in chunks...');
+      const chunks = Math.ceil(audioFile.size / CHUNK_SIZE);
+      
+      for (let i = 0; i < chunks; i++) {
+        const start = i * CHUNK_SIZE;
+        const end = Math.min(start + CHUNK_SIZE, audioFile.size);
+        const chunk = audioFile.slice(start, end, audioFile.type);
+        
+        console.log(`Processing chunk ${i + 1}/${chunks}`);
+        const chunkResponse = await openai.createTranscription(
+          chunk,
+          'whisper-1'
+        );
+        fullTranscription += chunkResponse.data.text + ' ';
+      }
+    } else {
+      console.log('Processing single file...');
+      const transcriptionResponse = await openai.createTranscription(
+        audioFile,
+        'whisper-1'
+      );
+      fullTranscription = transcriptionResponse.data.text;
+    }
 
-    const transcription = transcriptionResponse.data.text;
-    console.log('Transcription completed:', transcription);
-
-    // Analyze transcription with GPT-4
-    console.log('Analyzing transcription with GPT-4...');
+    console.log('Transcription completed, analyzing with GPT-4...');
     const completion = await openai.createChatCompletion({
       model: "gpt-4o-mini",
       messages: [
@@ -60,7 +83,7 @@ serve(async (req) => {
               "suggestions": string[]
             }`
         },
-        { role: "user", content: transcription }
+        { role: "user", content: fullTranscription }
       ],
     });
 

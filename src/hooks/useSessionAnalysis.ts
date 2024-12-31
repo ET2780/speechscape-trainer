@@ -5,11 +5,13 @@ import { useToast } from "@/hooks/use-toast";
 export const useSessionAnalysis = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState<any>(null);
+  const [progress, setProgress] = useState(0);
   const { toast } = useToast();
 
   const analyzeSession = async (audioBlob: Blob, sessionId: string) => {
-    console.log('Starting session analysis...');
+    console.log('Starting session analysis...', { blobSize: audioBlob.size });
     setIsAnalyzing(true);
+    setProgress(0);
 
     try {
       const formData = new FormData();
@@ -25,13 +27,17 @@ export const useSessionAnalysis = () => {
         body: formData,
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error from edge function:', error);
+        throw error;
+      }
 
       console.log('Analysis results:', data);
       setAnalysis(data);
+      setProgress(100);
 
       toast({
-        title: "Session Completed",
+        title: "Analysis Complete",
         description: "Your practice session has been analyzed",
       });
 
@@ -52,6 +58,7 @@ export const useSessionAnalysis = () => {
   return {
     isAnalyzing,
     analysis,
-    analyzeSession
+    analyzeSession,
+    progress
   };
 };
