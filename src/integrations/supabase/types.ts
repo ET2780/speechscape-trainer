@@ -9,6 +9,39 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      practice_sessions: {
+        Row: {
+          created_at: string
+          id: string
+          industry: string | null
+          job_type: string | null
+          practice_type: string
+          slide_url: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          industry?: string | null
+          job_type?: string | null
+          practice_type: string
+          slide_url?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          industry?: string | null
+          job_type?: string | null
+          practice_type?: string
+          slide_url?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -29,46 +62,6 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
-      }
-      practice_sessions: {
-        Row: {
-          id: string
-          user_id: string
-          practice_type: string
-          job_type: string | null
-          industry: string | null
-          slide_url: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          practice_type: string
-          job_type?: string | null
-          industry?: string | null
-          slide_url?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          practice_type?: string
-          job_type?: string | null
-          industry?: string | null
-          slide_url?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "practice_sessions_user_id_fkey"
-            columns: ["user_id"]
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          }
-        ]
       }
     }
     Views: {

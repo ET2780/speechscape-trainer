@@ -80,9 +80,9 @@ const Practice = () => {
         .insert({
           user_id: user.id,
           practice_type: practiceType,
-          job_type: jobType,
-          industry: industry,
-          slide_url: slideUrl,
+          job_type: jobType || null,
+          industry: industry || null,
+          slide_url: slideUrl || null,
         });
 
       if (error) throw error;
@@ -134,7 +134,7 @@ const Practice = () => {
         <Button
           onClick={handleStartPractice}
           disabled={isLoading || (practiceType === 'presentation' && !file) || (practiceType === 'interview' && (!jobType || !industry))}
-          className="w-full"
+          className="w-full mt-6"
         >
           {isLoading ? "Setting up..." : "Start Practice"}
         </Button>
