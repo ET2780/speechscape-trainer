@@ -48,23 +48,23 @@ export const GestureTracker = () => {
   if (!isTracking) return null;
 
   return (
-    <Card className="mt-4 overflow-hidden">
+    <Card className="mt-4">
       {error ? (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       ) : (
-        <div className="relative aspect-video">
+        <div className="relative">
           <video
             ref={videoRef}
             autoPlay
             playsInline
             muted
-            className="w-full h-full object-cover"
+            className="hidden" // Hide video but keep it running for gesture analysis
           />
-          <div className="absolute bottom-4 right-4 bg-black/50 text-white px-2 py-1 rounded text-sm">
-            Gesture Tracking Active
+          <div className="p-4 text-center text-sm text-muted-foreground">
+            Gesture tracking active
           </div>
         </div>
       )}

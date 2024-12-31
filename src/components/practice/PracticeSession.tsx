@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useNavigate } from "react-router-dom";
-import { VideoPreview } from "./VideoPreview";
 import { GestureMetrics } from "./GestureMetrics";
 import { PerformanceReport } from "./PerformanceReport";
 import { PracticeEnvironment } from "./PracticeEnvironment";
@@ -9,6 +8,7 @@ import { useCamera } from "@/hooks/useCamera";
 import { useAudioRecording } from "@/hooks/useAudioRecording";
 import { useSessionAnalysis } from "@/hooks/useSessionAnalysis";
 import { useGesture } from "@/contexts/GestureContext";
+import { GestureTracker } from "./GestureTracker";
 
 type PracticeSessionProps = {
   practiceType: 'presentation' | 'interview';
@@ -24,6 +24,7 @@ export const PracticeSession: React.FC<PracticeSessionProps> = ({
   industry
 }) => {
   const [isSessionActive, setIsSessionActive] = useState(true);
+  const [showReport, setShowReport] = useState(false);
   const navigate = useNavigate();
   
   const { videoRef, error: cameraError, startCamera, stopCamera } = useCamera();
@@ -31,7 +32,6 @@ export const PracticeSession: React.FC<PracticeSessionProps> = ({
   const { isAnalyzing, analysis, analyzeSession } = useSessionAnalysis();
   const { startTracking, stopTracking } = useGesture();
 
-  // Start session setup
   React.useEffect(() => {
     if (!isSessionActive) return;
 
@@ -65,33 +65,15 @@ export const PracticeSession: React.FC<PracticeSessionProps> = ({
     try {
       const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
       await analyzeSession(audioBlob, crypto.randomUUID());
+      setShowReport(true);
     } catch (error) {
       console.error('Failed to analyze session:', error);
     }
   };
 
-  return (
-    <div className="space-y-6">
-      <PracticeEnvironment
-        practiceType={practiceType}
-        slideUrl={slideUrl}
-        jobType={jobType}
-        industry={industry}
-      />
-      
-      {isSessionActive && (
-        <>
-          <VideoPreview videoRef={videoRef} error={cameraError} />
-          <GestureMetrics />
-          <SessionControls
-            isSessionActive={isSessionActive}
-            isAnalyzing={isAnalyzing}
-            onEndSession={handleEndSession}
-          />
-        </>
-      )}
-
-      {!isSessionActive && analysis && (
+  if (showReport && analysis) {
+    return (
+      <div className="container mx-auto py-8">
         <PerformanceReport 
           analysis={analysis}
           gestureAnalysis={{
@@ -107,6 +89,29 @@ export const PracticeSession: React.FC<PracticeSessionProps> = ({
             aiFeedback: null
           }}
         />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <PracticeEnvironment
+        practiceType={practiceType}
+        slideUrl={slideUrl}
+        jobType={jobType}
+        industry={industry}
+      />
+      
+      {isSessionActive && (
+        <>
+          <GestureTracker />
+          <GestureMetrics />
+          <SessionControls
+            isSessionActive={isSessionActive}
+            isAnalyzing={isAnalyzing}
+            onEndSession={handleEndSession}
+          />
+        </>
       )}
 
       {!isSessionActive && !analysis && (

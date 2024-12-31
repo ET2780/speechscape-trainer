@@ -10,15 +10,22 @@ const corsHeaders = {
 const CHUNK_SIZE = 25 * 1024 * 1024; // 25MB chunks for Whisper API
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    console.log('Starting speech analysis...');
     const formData = await req.formData();
     const audioFile = formData.get('audio') as File;
     const sessionId = formData.get('sessionId') as string;
     const userId = formData.get('userId') as string;
+
+    if (!audioFile || !sessionId || !userId) {
+      console.error('Missing required fields:', { audioFile: !!audioFile, sessionId, userId });
+      throw new Error('Missing required fields');
+    }
 
     console.log('Received audio file:', {
       size: audioFile.size,
@@ -62,7 +69,7 @@ serve(async (req) => {
 
     console.log('Transcription completed, analyzing with GPT-4...');
     const completion = await openai.createChatCompletion({
-      model: "gpt-4o-mini",
+      model: "gpt-4",
       messages: [
         {
           role: "system",
@@ -119,9 +126,12 @@ serve(async (req) => {
     });
   } catch (error) {
     console.error('Error in analyze-speech function:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return new Response(
+      JSON.stringify({ error: error.message }), 
+      { 
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
   }
 });
