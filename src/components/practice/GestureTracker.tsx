@@ -11,6 +11,7 @@ export const GestureTracker = () => {
   const { isTracking, updateGestureData } = useGesture();
   const [error, setError] = useState<string | null>(null);
   const captureIntervalRef = useRef<ReturnType<typeof setInterval>>();
+  const frameBufferRef = useRef<Blob[]>([]);
 
   const captureFrame = () => {
     if (!videoRef.current || !canvasRef.current) return;
@@ -28,27 +29,37 @@ export const GestureTracker = () => {
     // Draw the current video frame
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    // Convert to blob and analyze
+    // Convert to blob and store
     canvas.toBlob(async (blob) => {
       if (!blob) return;
       console.log('Captured frame:', blob.size, 'bytes');
       
-      try {
-        const formData = new FormData();
-        formData.append('images', blob, 'frame.jpg');
+      frameBufferRef.current.push(blob);
+      
+      // When we have enough frames (every 30 seconds), analyze them
+      if (frameBufferRef.current.length >= 6) { // 6 frames = 30 seconds
+        try {
+          const formData = new FormData();
+          frameBufferRef.current.forEach((frameBlob, index) => {
+            formData.append('images', frameBlob, `frame${index}.jpg`);
+          });
 
-        const { data, error } = await supabase.functions.invoke('analyze-gestures', {
-          body: formData,
-        });
+          const { data, error } = await supabase.functions.invoke('analyze-gestures', {
+            body: formData,
+          });
 
-        if (error) throw error;
-        console.log('Gesture analysis received:', data);
-        
-        if (data.metrics) {
-          updateGestureData(data.metrics);
+          if (error) throw error;
+          console.log('Gesture analysis received:', data);
+          
+          if (data.metrics) {
+            updateGestureData(data.metrics);
+          }
+          
+          // Clear the buffer after analysis
+          frameBufferRef.current = [];
+        } catch (error) {
+          console.error('Error analyzing frames:', error);
         }
-      } catch (error) {
-        console.error('Error analyzing frame:', error);
       }
     }, 'image/jpeg', 0.8);
   };
@@ -92,6 +103,8 @@ export const GestureTracker = () => {
         track.stop();
         console.log('Stopped video track:', track.label);
       });
+      // Clear any remaining frames
+      frameBufferRef.current = [];
     };
   }, [isTracking]);
 

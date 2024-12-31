@@ -1,6 +1,5 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 
 const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 
@@ -36,14 +35,23 @@ serve(async (req) => {
           messages: [
             {
               role: 'system',
-              content: 'You are an expert in analyzing body language and gestures in presentations. Analyze the image and provide detailed feedback about the presenter\'s posture, hand gestures, and overall body language. Focus on professional presentation aspects.'
+              content: `You are an expert in analyzing presentation body language and gestures. 
+              You're watching a presenter giving a talk in front of an audience.
+              Focus on analyzing:
+              1. Hand gestures and their effectiveness
+              2. Body posture and stance
+              3. Stage presence and movement
+              4. Engagement with the audience
+              5. Overall confidence indicators
+              
+              Provide specific observations about these aspects and how they impact the presentation's effectiveness.`
             },
             {
               role: 'user',
               content: [
                 { 
                   type: 'text', 
-                  text: 'Analyze this presenter\'s body language and gestures. Provide specific observations about hand movements, posture, and overall presence.' 
+                  text: `This is frame ${index + 1} of a presentation. Analyze the presenter's body language and gestures, considering this is a live presentation in front of an audience.` 
                 },
                 {
                   type: 'image_url',
@@ -62,7 +70,7 @@ serve(async (req) => {
       return data.choices[0].message.content;
     }));
 
-    // Aggregate all analyses into a summary
+    // Aggregate all analyses into a comprehensive summary
     const summaryResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -74,11 +82,19 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: 'You are an expert in analyzing presentation body language. Create a concise summary of multiple gesture analyses and provide actionable feedback.'
+            content: `You are an expert presentation coach analyzing a sequence of images from a live presentation.
+            Create a comprehensive analysis that includes:
+            1. Overall gesture patterns and frequency
+            2. Consistency in body language
+            3. Stage presence and audience engagement
+            4. Areas of strength
+            5. Specific suggestions for improvement
+            
+            Format the response as structured metrics and actionable feedback.`
           },
           {
             role: 'user',
-            content: `Summarize these gesture analyses and provide overall feedback: ${JSON.stringify(analyses)}`
+            content: `Based on these sequential analyses of the presentation, provide a comprehensive evaluation and metrics:\n\n${analyses.join('\n\n')}`
           }
         ]
       })
@@ -89,17 +105,30 @@ serve(async (req) => {
 
     // Calculate metrics based on the analyses
     const metrics = {
-      gesturesPerMinute: analyses.length * (60 / 5), // 5 seconds between captures
+      gesturesPerMinute: Math.round((analyses.length * (60 / 5)) * 10) / 10, // 5 seconds between captures
       gestureTypes: {
         pointing: 0,
         waving: 0,
         openPalm: 0,
         other: 0
       },
-      smoothnessScore: 7.5, // Default score, could be improved with more sophisticated analysis
-      gestureToSpeechRatio: 0.8, // Default ratio
+      smoothnessScore: 7.5,
+      gestureToSpeechRatio: 0.8,
       aiFeedback: summary
     };
+
+    // Update gesture types based on analysis content
+    analyses.forEach(analysis => {
+      if (analysis.toLowerCase().includes('pointing')) metrics.gestureTypes.pointing++;
+      if (analysis.toLowerCase().includes('wave')) metrics.gestureTypes.waving++;
+      if (analysis.toLowerCase().includes('open palm')) metrics.gestureTypes.openPalm++;
+      if (analysis.toLowerCase().includes('gesture') && 
+          !analysis.toLowerCase().includes('pointing') && 
+          !analysis.toLowerCase().includes('wave') && 
+          !analysis.toLowerCase().includes('open palm')) {
+        metrics.gestureTypes.other++;
+      }
+    });
 
     return new Response(
       JSON.stringify({ analyses, summary, metrics }),
