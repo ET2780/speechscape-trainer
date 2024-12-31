@@ -1,19 +1,7 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-
-type GestureMetrics = {
-  gesturesPerMinute: number;
-  gestureTypes: {
-    pointing: number;
-    waving: number;
-    openPalm: number;
-    other: number;
-  };
-  smoothnessScore: number;
-  gestureToSpeechRatio: number;
-  aiFeedback: string | null;
-};
+import { GestureMetrics } from '@/types/analysis';
 
 type GestureContextType = {
   isTracking: boolean;
@@ -47,6 +35,7 @@ export const GestureProvider = ({ children }: { children: React.ReactNode }) => 
   const { toast } = useToast();
 
   const updateGestureData = useCallback((metrics: GestureMetrics) => {
+    console.log('Updating gesture metrics:', metrics);
     setGestureMetrics(metrics);
     if (metrics.aiFeedback) {
       setAiFeedback(metrics.aiFeedback);
@@ -55,6 +44,7 @@ export const GestureProvider = ({ children }: { children: React.ReactNode }) => 
 
   const generateFeedback = async () => {
     try {
+      console.log('Generating feedback for metrics:', gestureMetrics);
       const { data, error } = await supabase.functions.invoke('generate-gesture-feedback', {
         body: { metrics: gestureMetrics }
       });

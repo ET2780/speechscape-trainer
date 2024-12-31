@@ -1,35 +1,19 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
+import { ChartContainer } from "@/components/ui/chart";
 import { AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { CombinedAnalysis } from "@/types/analysis";
 
 interface PerformanceReportProps {
-  analysis: {
-    wordsPerMinute: number;
-    fillerWordCount: number;
-    toneConfidence: number;
-    toneEnergy: number;
-    overallScore: number;
-    suggestions: string[];
-  };
-  gestureAnalysis: {
-    gesturesPerMinute: number;
-    gestureTypes: {
-      pointing: number;
-      waving: number;
-      openPalm: number;
-      other: number;
-    };
-    smoothnessScore: number;
-    gestureToSpeechRatio: number;
-    aiFeedback: string | null;
-  };
+  analysis: CombinedAnalysis;
 }
 
-export const PerformanceReport = ({ analysis, gestureAnalysis }: PerformanceReportProps) => {
-  const gestureTypeData = Object.entries(gestureAnalysis.gestureTypes).map(([type, count]) => ({
+export const PerformanceReport = ({ analysis }: PerformanceReportProps) => {
+  const { speech, gesture } = analysis;
+  
+  const gestureTypeData = Object.entries(gesture.gestureTypes).map(([type, count]) => ({
     type: type.charAt(0).toUpperCase() + type.slice(1),
     count,
   }));
@@ -46,34 +30,34 @@ export const PerformanceReport = ({ analysis, gestureAnalysis }: PerformanceRepo
           <div>
             <div className="flex justify-between mb-2">
               <span className="text-sm font-medium">Overall Score</span>
-              <span className="text-sm font-medium">{analysis.overallScore}%</span>
+              <span className="text-sm font-medium">{speech.overallScore}%</span>
             </div>
-            <Progress value={analysis.overallScore} className="h-2" />
+            <Progress value={speech.overallScore} className="h-2" />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <p className="text-sm font-medium">Words per Minute</p>
-              <p className="text-2xl font-bold">{analysis.wordsPerMinute}</p>
+              <p className="text-2xl font-bold">{speech.wordsPerMinute}</p>
             </div>
             <div className="space-y-2">
               <p className="text-sm font-medium">Filler Words</p>
-              <p className="text-2xl font-bold">{analysis.fillerWordCount}</p>
+              <p className="text-2xl font-bold">{speech.fillerWordCount}</p>
             </div>
             <div className="space-y-2">
               <p className="text-sm font-medium">Confidence Score</p>
-              <p className="text-2xl font-bold">{analysis.toneConfidence}%</p>
+              <p className="text-2xl font-bold">{speech.toneConfidence}%</p>
             </div>
             <div className="space-y-2">
               <p className="text-sm font-medium">Energy Level</p>
-              <p className="text-2xl font-bold">{analysis.toneEnergy}%</p>
+              <p className="text-2xl font-bold">{speech.toneEnergy}%</p>
             </div>
           </div>
 
           <div className="space-y-2">
-            <h3 className="text-sm font-medium">Suggestions for Improvement</h3>
+            <h3 className="text-sm font-medium">Speech Suggestions</h3>
             <ul className="list-disc pl-5 space-y-1">
-              {analysis.suggestions.map((suggestion, index) => (
+              {speech.suggestions.map((suggestion, index) => (
                 <li key={index} className="text-sm text-muted-foreground">
                   {suggestion}
                 </li>
@@ -81,33 +65,26 @@ export const PerformanceReport = ({ analysis, gestureAnalysis }: PerformanceRepo
             </ul>
           </div>
 
-          {/* Gesture Analysis Section */}
           <div className="border-t pt-6 mt-6">
             <h3 className="text-lg font-semibold mb-4">Gesture Analysis</h3>
             
             <div className="grid grid-cols-2 gap-4 mb-6">
               <div className="space-y-2">
                 <p className="text-sm font-medium">Gestures per Minute</p>
-                <p className="text-2xl font-bold">{gestureAnalysis.gesturesPerMinute.toFixed(1)}</p>
+                <p className="text-2xl font-bold">{gesture.gesturesPerMinute.toFixed(1)}</p>
               </div>
               <div className="space-y-2">
                 <p className="text-sm font-medium">Smoothness Score</p>
-                <p className="text-2xl font-bold">{gestureAnalysis.smoothnessScore.toFixed(1)}/10</p>
+                <p className="text-2xl font-bold">{gesture.smoothnessScore.toFixed(1)}/10</p>
+              </div>
+              <div className="space-y-2">
+                <p className="text-sm font-medium">Speech-Gesture Alignment</p>
+                <p className="text-2xl font-bold">{gesture.gestureToSpeechRatio.toFixed(1)}%</p>
               </div>
             </div>
 
             <div className="h-64 mb-6">
-              <ChartContainer
-                className="h-full"
-                config={{
-                  count: {
-                    theme: {
-                      light: "hsl(var(--primary))",
-                      dark: "hsl(var(--primary))",
-                    },
-                  },
-                }}
-              >
+              <ChartContainer className="h-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={gestureTypeData}>
                     <CartesianGrid strokeDasharray="3 3" />
@@ -120,11 +97,11 @@ export const PerformanceReport = ({ analysis, gestureAnalysis }: PerformanceRepo
               </ChartContainer>
             </div>
 
-            {gestureAnalysis.aiFeedback && (
+            {gesture.aiFeedback && (
               <Alert>
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription className="mt-2">
-                  {gestureAnalysis.aiFeedback}
+                  {gesture.aiFeedback}
                 </AlertDescription>
               </Alert>
             )}
