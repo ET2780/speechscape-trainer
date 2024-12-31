@@ -72,21 +72,7 @@ export const PracticeSession: React.FC<PracticeSessionProps> = ({
   if (showReport && analysis) {
     return (
       <div className="container mx-auto py-8">
-        <PerformanceReport 
-          analysis={analysis}
-          gestureAnalysis={{
-            gesturesPerMinute: 0,
-            gestureTypes: {
-              pointing: 0,
-              waving: 0,
-              openPalm: 0,
-              other: 0
-            },
-            smoothnessScore: 0,
-            gestureToSpeechRatio: 0,
-            aiFeedback: null
-          }}
-        />
+        <PerformanceReport analysis={analysis} />
       </div>
     );
   }

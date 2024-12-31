@@ -25,10 +25,34 @@ import { useNavigate } from "react-router-dom";
 import { usePerformanceHistory } from "@/hooks/use-performance-history";
 import { format } from "date-fns";
 import { PerformanceReport } from "@/components/practice/PerformanceReport";
+import { CombinedAnalysis } from "@/types/analysis";
 
 const History = () => {
   const navigate = useNavigate();
   const { data: reports, isLoading, error } = usePerformanceHistory();
+
+  const createCombinedAnalysis = (report: any): CombinedAnalysis => ({
+    speech: {
+      wordsPerMinute: report.words_per_minute || 0,
+      fillerWordCount: report.filler_word_count || 0,
+      toneConfidence: report.tone_confidence || 0,
+      toneEnergy: report.tone_energy || 0,
+      overallScore: report.overall_score || 0,
+      suggestions: report.suggestions || [],
+    },
+    gesture: {
+      gesturesPerMinute: 0,
+      gestureTypes: {
+        pointing: 0,
+        waving: 0,
+        openPalm: 0,
+        other: 0
+      },
+      smoothnessScore: 0,
+      gestureToSpeechRatio: 0,
+      aiFeedback: null
+    }
+  });
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white p-6">
@@ -93,26 +117,7 @@ const History = () => {
                               <DialogTitle>Performance Report</DialogTitle>
                             </DialogHeader>
                             <PerformanceReport
-                              analysis={{
-                                wordsPerMinute: report.words_per_minute || 0,
-                                fillerWordCount: report.filler_word_count || 0,
-                                toneConfidence: report.tone_confidence || 0,
-                                toneEnergy: report.tone_energy || 0,
-                                overallScore: report.overall_score || 0,
-                                suggestions: report.suggestions || [],
-                              }}
-                              gestureAnalysis={{
-                                gesturesPerMinute: 0, // Default values since we don't have this data yet
-                                gestureTypes: {
-                                  pointing: 0,
-                                  waving: 0,
-                                  openPalm: 0,
-                                  other: 0
-                                },
-                                smoothnessScore: 0,
-                                gestureToSpeechRatio: 0,
-                                aiFeedback: null
-                              }}
+                              analysis={createCombinedAnalysis(report)}
                             />
                           </DialogContent>
                         </Dialog>

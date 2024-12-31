@@ -18,6 +18,11 @@ export const PerformanceReport = ({ analysis }: PerformanceReportProps) => {
     count,
   }));
 
+  const chartConfig = {
+    width: '100%',
+    height: '100%',
+  };
+
   return (
     <Card className="w-full max-w-2xl mx-auto">
       <CardHeader>
@@ -84,7 +89,7 @@ export const PerformanceReport = ({ analysis }: PerformanceReportProps) => {
             </div>
 
             <div className="h-64 mb-6">
-              <ChartContainer className="h-full">
+              <ChartContainer className="h-full" config={chartConfig}>
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={gestureTypeData}>
                     <CartesianGrid strokeDasharray="3 3" />
