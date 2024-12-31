@@ -17,19 +17,21 @@ serve(async (req) => {
     const { metrics } = await req.json();
     
     const prompt = `
-      Analyze these gesture metrics and provide actionable feedback:
+      As a public speaking coach, analyze these gesture metrics and provide specific, actionable feedback:
+      
       - Gestures per minute: ${metrics.gesturesPerMinute}
-      - Gesture types distribution: ${JSON.stringify(metrics.gestureTypes)}
+      - Gesture types used: ${Object.entries(metrics.gestureTypes).map(([type, count]) => 
+        `${type}: ${count}`).join(', ')}
       - Smoothness score: ${metrics.smoothnessScore}/10
       - Gesture to speech alignment: ${metrics.gestureToSpeechRatio}%
-
-      Provide specific, constructive feedback about:
-      1. Gesture frequency and timing
-      2. Variety of gestures used
-      3. Smoothness and natural flow
-      4. Alignment with speech
       
-      Format the response as a concise paragraph with actionable suggestions.
+      Provide concise, constructive feedback about:
+      1. Gesture frequency and timing
+      2. Variety of gestures
+      3. Smoothness and natural flow
+      4. Speech alignment
+      
+      Format as a short paragraph with clear, actionable suggestions.
     `;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
