@@ -7,6 +7,8 @@ export const GestureMetrics = () => {
 
   if (!isTracking) return null;
 
+  const totalGestures = Object.values(gestureMetrics.gestureTypes).reduce((a, b) => a + b, 0);
+
   return (
     <Card className="mt-4">
       <CardHeader>
@@ -15,32 +17,44 @@ export const GestureMetrics = () => {
       <CardContent className="space-y-4">
         <div className="space-y-2">
           <div className="flex justify-between">
-            <span className="text-sm font-medium">Hand Presence</span>
+            <span className="text-sm font-medium">Gestures per Minute</span>
             <span className="text-sm text-muted-foreground">
-              {gestureMetrics.handPresence}%
+              {gestureMetrics.gesturesPerMinute.toFixed(1)}
             </span>
           </div>
-          <Progress value={gestureMetrics.handPresence} />
+          <Progress value={Math.min(100, (gestureMetrics.gesturesPerMinute / 30) * 100)} />
         </div>
 
         <div className="space-y-2">
           <div className="flex justify-between">
-            <span className="text-sm font-medium">Movement Speed</span>
+            <span className="text-sm font-medium">Smoothness Score</span>
             <span className="text-sm text-muted-foreground">
-              {gestureMetrics.movementSpeed}%
+              {gestureMetrics.smoothnessScore.toFixed(1)}/10
             </span>
           </div>
-          <Progress value={gestureMetrics.movementSpeed} />
+          <Progress value={(gestureMetrics.smoothnessScore / 10) * 100} />
         </div>
 
         <div className="space-y-2">
           <div className="flex justify-between">
-            <span className="text-sm font-medium">Gesture Variety</span>
+            <span className="text-sm font-medium">Gesture-Speech Alignment</span>
             <span className="text-sm text-muted-foreground">
-              {gestureMetrics.gestureVariety}%
+              {gestureMetrics.gestureToSpeechRatio.toFixed(1)}%
             </span>
           </div>
-          <Progress value={gestureMetrics.gestureVariety} />
+          <Progress value={gestureMetrics.gestureToSpeechRatio} />
+        </div>
+
+        <div className="space-y-2">
+          <span className="text-sm font-medium">Gesture Types</span>
+          <div className="grid grid-cols-2 gap-2">
+            {Object.entries(gestureMetrics.gestureTypes).map(([type, count]) => (
+              <div key={type} className="bg-gray-50 p-2 rounded">
+                <div className="text-xs font-medium capitalize">{type}</div>
+                <div className="text-sm">{count} ({totalGestures ? ((count / totalGestures) * 100).toFixed(1) : 0}%)</div>
+              </div>
+            ))}
+          </div>
         </div>
       </CardContent>
     </Card>
