@@ -1,13 +1,16 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { PresentationEnvironment } from "./PresentationEnvironment";
 import { InterviewEnvironment } from "./InterviewEnvironment";
-import { GestureTracker } from "./GestureTracker";
+import { VideoPreview } from "./VideoPreview";
 import { GestureMetrics } from "./GestureMetrics";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { PerformanceReport } from "./PerformanceReport";
+import { useCamera } from "@/hooks/useCamera";
+import { useAudioRecording } from "@/hooks/useAudioRecording";
+import { useGesture } from "@/contexts/GestureContext";
 
 type PracticeSessionProps = {
   practiceType: 'presentation' | 'interview';
@@ -23,68 +26,51 @@ export const PracticeSession: React.FC<PracticeSessionProps> = ({
   industry
 }) => {
   const [isSessionActive, setIsSessionActive] = useState(true);
-  const [isRecording, setIsRecording] = useState(false);
-  const [audioChunks, setAudioChunks] = useState<Blob[]>([]);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState<any>(null);
+  
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { videoRef, error: cameraError, startCamera, stopCamera } = useCamera();
+  const { isRecording, audioChunks, startRecording, stopRecording } = useAudioRecording();
+  const { startTracking, stopTracking } = useGesture();
 
-  // Audio recording setup
-  useEffect(() => {
+  // Start session setup
+  React.useEffect(() => {
     if (!isSessionActive) return;
 
-    const startRecording = async () => {
+    const setupSession = async () => {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        const mediaRecorder = new MediaRecorder(stream);
-        mediaRecorderRef.current = mediaRecorder;
-        
-        const chunks: Blob[] = [];
-        mediaRecorder.ondataavailable = (e) => {
-          if (e.data.size > 0) {
-            chunks.push(e.data);
-          }
-        };
-
-        mediaRecorder.onstop = () => {
-          setAudioChunks(chunks);
-        };
-
-        mediaRecorder.start(1000); // Collect data every second
-        setIsRecording(true);
-        console.log('Recording started');
+        await startCamera();
+        await startRecording();
+        startTracking();
       } catch (error) {
-        console.error('Error accessing microphone:', error);
+        console.error('Error setting up session:', error);
         toast({
-          title: "Microphone Access Error",
-          description: "Please allow microphone access to use this feature",
+          title: "Setup Error",
+          description: error.message,
           variant: "destructive",
         });
       }
     };
 
-    startRecording();
+    setupSession();
 
     return () => {
-      if (mediaRecorderRef.current && isRecording) {
-        mediaRecorderRef.current.stop();
-        setIsRecording(false);
-        console.log('Recording stopped');
-      }
+      stopCamera();
+      stopRecording();
+      stopTracking();
     };
-  }, [isSessionActive, toast]);
+  }, [isSessionActive]);
 
   const handleEndSession = async () => {
     console.log('Ending session...');
     setIsSessionActive(false);
     setIsAnalyzing(true);
 
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-    }
+    stopRecording();
+    stopCamera();
+    stopTracking();
 
     try {
       // Create audio file from chunks
@@ -133,9 +119,9 @@ export const PracticeSession: React.FC<PracticeSessionProps> = ({
         )}
       </div>
       
-      {isSessionActive ? (
+      {isSessionActive && (
         <>
-          <GestureTracker />
+          <VideoPreview videoRef={videoRef} error={cameraError} />
           <GestureMetrics />
           
           <div className="flex justify-center mt-4">
@@ -148,7 +134,9 @@ export const PracticeSession: React.FC<PracticeSessionProps> = ({
             </Button>
           </div>
         </>
-      ) : analysis ? (
+      )}
+
+      {!isSessionActive && analysis && (
         <PerformanceReport 
           analysis={analysis}
           gestureAnalysis={{
@@ -164,7 +152,9 @@ export const PracticeSession: React.FC<PracticeSessionProps> = ({
             aiFeedback: null
           }}
         />
-      ) : (
+      )}
+
+      {!isSessionActive && !analysis && (
         <div className="text-center">
           <p className="text-gray-500">Analyzing your performance...</p>
         </div>
