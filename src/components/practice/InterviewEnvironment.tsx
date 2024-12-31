@@ -1,7 +1,12 @@
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Card } from "@/components/ui/card";
 
-export const InterviewEnvironment = () => {
+type InterviewEnvironmentProps = {
+  jobType?: string;
+  industry?: string;
+};
+
+export const InterviewEnvironment = ({ jobType, industry }: InterviewEnvironmentProps) => {
   return (
     <div className="w-full h-full min-h-[600px] relative bg-gradient-to-b from-gray-100 to-white rounded-lg overflow-hidden animate-fade-in">
       {/* Virtual Desk */}
@@ -21,6 +26,14 @@ export const InterviewEnvironment = () => {
           </Card>
         ))}
       </div>
+
+      {/* Job and Industry Information */}
+      {(jobType || industry) && (
+        <div className="absolute top-4 left-4 bg-white/70 p-2 rounded-md shadow-sm">
+          {jobType && <div className="text-sm font-semibold">Job: {jobType}</div>}
+          {industry && <div className="text-sm text-gray-600">Industry: {industry}</div>}
+        </div>
+      )}
 
       {/* Desk Surface */}
       <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-gray-300 to-gray-200" />
