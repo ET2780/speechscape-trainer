@@ -19,8 +19,10 @@ export const PerformanceReport = ({ analysis }: PerformanceReportProps) => {
   }));
 
   const chartConfig = {
-    width: '100%',
-    height: '100%',
+    gestures: {
+      color: 'hsl(var(--primary))',
+      label: 'Gesture Count'
+    }
   };
 
   return (
@@ -96,7 +98,7 @@ export const PerformanceReport = ({ analysis }: PerformanceReportProps) => {
                     <XAxis dataKey="type" />
                     <YAxis />
                     <Tooltip />
-                    <Bar dataKey="count" fill="hsl(var(--primary))" />
+                    <Bar dataKey="count" fill="var(--color-gestures)" />
                   </BarChart>
                 </ResponsiveContainer>
               </ChartContainer>
