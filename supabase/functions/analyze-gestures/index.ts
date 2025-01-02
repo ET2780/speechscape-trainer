@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  console.log('Received request to analyze-gestures function');
+  console.log('analyze-gestures function invoked');
   
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -16,20 +16,28 @@ serve(async (req) => {
   }
 
   try {
-    const { frames } = await req.json();
-    console.log(`Processing ${frames?.length || 0} gesture frames`);
+    console.log('Request method:', req.method);
+    console.log('Request headers:', Object.fromEntries(req.headers.entries()));
     
-    if (!frames || !Array.isArray(frames) || frames.length === 0) {
+    const body = await req.json();
+    console.log('Received request body:', body);
+
+    if (!body.frames || !Array.isArray(body.frames)) {
       console.error('Invalid or missing frames in request');
-      throw new Error('No frames provided for analysis');
+      return new Response(
+        JSON.stringify({ error: 'frames array is required' }),
+        { 
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
     }
 
-    // Log the first frame's length to verify data
-    console.log('First frame data length:', frames[0]?.length || 0);
-
+    console.log('Processing', body.frames.length, 'frames');
+    
     // Mock analysis for testing
     const mockMetrics = {
-      gesturesPerMinute: frames.length * (60 / 15), // 15 seconds of analysis
+      gesturesPerMinute: body.frames.length * (60 / 15),
       gestureTypes: {
         pointing: 1,
         waving: 1,
@@ -37,39 +45,26 @@ serve(async (req) => {
         other: 1
       },
       smoothnessScore: 8.5,
-      gestureToSpeechRatio: 75,
-      analysis: frames.map((_, index) => ({
-        gestureType: 'pointing',
-        description: 'Test gesture analysis',
-        confidence: 85,
-        impact: 'positive',
-        suggestions: ['Keep gestures natural']
-      }))
+      gestureToSpeechRatio: 75
     };
 
-    console.log('Analysis completed successfully:', mockMetrics);
+    console.log('Analysis completed, returning metrics:', mockMetrics);
 
     return new Response(
       JSON.stringify({ metrics: mockMetrics }),
       { 
-        headers: { 
-          ...corsHeaders,
-          'Content-Type': 'application/json'
-        } 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200
       }
     );
 
   } catch (error) {
-    console.error('Error in analyze-gestures function:', error);
-    
+    console.error('Error processing request:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
       { 
-        headers: { 
-          ...corsHeaders,
-          'Content-Type': 'application/json'
-        },
-        status: 400
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500
       }
     );
   }
