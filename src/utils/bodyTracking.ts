@@ -3,7 +3,6 @@ export class BodyTracker {
   private video: HTMLVideoElement;
   private ctx: CanvasRenderingContext2D;
   private isTracking: boolean = false;
-  private lastProcessedFrame: ImageData | null = null;
 
   constructor(video: HTMLVideoElement, canvas: HTMLCanvasElement) {
     this.video = video;
@@ -11,35 +10,37 @@ export class BodyTracker {
     const context = canvas.getContext('2d', { willReadFrequently: true });
     if (!context) throw new Error('Could not get canvas context');
     this.ctx = context;
+
     console.log('BodyTracker: Initialized with willReadFrequently=true');
-  }
 
-  async start() {
-    if (this.video.readyState >= 2) {
-      console.log('BodyTracker: Starting tracking immediately');
-      this.setupTracking();
-    } else {
-      console.log('BodyTracker: Waiting for video to be ready...');
-      await new Promise<void>((resolve) => {
-        this.video.addEventListener('canplay', () => {
-          console.log('BodyTracker: Video can now play');
-          this.setupTracking();
-          resolve();
-        }, { once: true });
+    // Listen for video metadata to be loaded
+    this.video.addEventListener('loadedmetadata', () => {
+      console.log('BodyTracker: Video metadata loaded:', {
+        width: this.video.videoWidth,
+        height: this.video.videoHeight
       });
-    }
+      this.canvas.width = this.video.videoWidth;
+      this.canvas.height = this.video.videoHeight;
+    });
   }
 
-  private setupTracking() {
-    console.log('BodyTracker: Setting up tracking with dimensions:', {
-      width: this.video.videoWidth,
-      height: this.video.videoHeight
-    });
-    
-    this.canvas.width = this.video.videoWidth;
-    this.canvas.height = this.video.videoHeight;
-    this.isTracking = true;
-    this.track();
+  start() {
+    // Only start tracking once video is playing
+    if (this.video.readyState >= 2) { // HAVE_CURRENT_DATA or better
+      console.log('BodyTracker: Starting tracking with video dimensions:', {
+        width: this.video.videoWidth,
+        height: this.video.videoHeight
+      });
+      this.isTracking = true;
+      this.track();
+    } else {
+      console.log('BodyTracker: Waiting for video to be ready before starting tracking...');
+      this.video.addEventListener('canplay', () => {
+        console.log('BodyTracker: Video can now play, starting tracking');
+        this.isTracking = true;
+        this.track();
+      }, { once: true });
+    }
   }
 
   stop() {
@@ -53,85 +54,79 @@ export class BodyTracker {
       return;
     }
 
+    // Ensure video dimensions are available
+    if (this.video.videoWidth === 0 || this.video.videoHeight === 0) {
+      console.log('BodyTracker: Video dimensions not yet available, waiting...');
+      requestAnimationFrame(() => this.track());
+      return;
+    }
+
+    // Update canvas size if needed
+    if (this.canvas.width !== this.video.videoWidth) {
+      console.log('BodyTracker: Updating canvas dimensions to match video');
+      this.canvas.width = this.video.videoWidth;
+      this.canvas.height = this.video.videoHeight;
+    }
+
+    // Draw the video frame
+    this.ctx.drawImage(this.video, 0, 0, this.canvas.width, this.canvas.height);
+
     try {
-      this.ctx.drawImage(this.video, 0, 0, this.canvas.width, this.canvas.height);
-      const currentFrame = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
-      
-      if (this.hasMovement(currentFrame)) {
-        this.processFrame(currentFrame);
+      // Get image data for analysis
+      const imageData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
+      const data = imageData.data;
+
+      // Simple movement detection by comparing pixel changes
+      for (let i = 0; i < data.length; i += 4) {
+        const red = data[i];
+        const green = data[i + 1];
+        const blue = data[i + 2];
+        
+        // Highlight areas with movement (simplified for demonstration)
+        if (red > 150 && green > 150 && blue > 150) {
+          data[i] = 255;     // Red
+          data[i + 1] = 0;   // Green
+          data[i + 2] = 0;   // Blue
+          data[i + 3] = 255; // Alpha
+        }
       }
-      
-      this.lastProcessedFrame = currentFrame;
+
+      // Put the modified image data back
+      this.ctx.putImageData(imageData, 0, 0);
     } catch (error) {
       console.error('BodyTracker: Error processing video frame:', error);
     }
 
+    // Continue tracking
     requestAnimationFrame(() => this.track());
   }
 
-  private hasMovement(currentFrame: ImageData): boolean {
-    if (!this.lastProcessedFrame) return true;
-
-    const threshold = 30;
-    const data1 = currentFrame.data;
-    const data2 = this.lastProcessedFrame.data;
-    let differences = 0;
-
-    for (let i = 0; i < data1.length; i += 4) {
-      const diff = Math.abs(data1[i] - data2[i]);
-      if (diff > threshold) differences++;
-    }
-
-    return differences > (data1.length / 4) * 0.01; // 1% of pixels changed
-  }
-
-  private processFrame(imageData: ImageData) {
-    const data = imageData.data;
-    let movementDetected = false;
-
-    for (let i = 0; i < data.length; i += 4) {
-      const brightness = (data[i] + data[i + 1] + data[i + 2]) / 3;
-      if (brightness > 150) {
-        data[i] = 255;     // Red
-        data[i + 1] = 0;   // Green
-        data[i + 2] = 0;   // Blue
-        data[i + 3] = 255; // Alpha
-        movementDetected = true;
-      }
-    }
-
-    if (movementDetected) {
-      this.ctx.putImageData(imageData, 0, 0);
-    }
-  }
-
-  async captureFrame(): Promise<Blob> {
+  // Get a snapshot of the current frame
+  captureFrame(): Promise<Blob> {
     return new Promise((resolve, reject) => {
-      try {
-        console.log('BodyTracker: Capturing frame...');
-        
-        // Ensure canvas dimensions match video
-        if (this.canvas.width !== this.video.videoWidth) {
-          this.canvas.width = this.video.videoWidth;
-          this.canvas.height = this.video.videoHeight;
-        }
+      console.log('BodyTracker: Attempting to capture frame...');
+      
+      if (this.video.videoWidth === 0 || this.video.videoHeight === 0) {
+        const error = 'Video dimensions not available';
+        console.error('BodyTracker:', error);
+        reject(new Error(error));
+        return;
+      }
 
-        // Draw current frame
-        this.ctx.drawImage(this.video, 0, 0, this.canvas.width, this.canvas.height);
-        
+      try {
         this.canvas.toBlob(
           (blob) => {
-            if (blob && blob.size > 0) {
+            if (blob) {
               console.log('BodyTracker: Frame captured successfully:', blob.size, 'bytes');
               resolve(blob);
             } else {
-              const error = 'Failed to create valid blob from canvas';
+              const error = 'Failed to create blob from canvas';
               console.error('BodyTracker:', error);
               reject(new Error(error));
             }
           },
           'image/jpeg',
-          0.85 // Increased quality for better analysis
+          0.8
         );
       } catch (error) {
         console.error('BodyTracker: Error capturing frame:', error);

@@ -2,8 +2,6 @@ import { useState } from 'react';
 import { useSessionAnalysis } from "@/hooks/useSessionAnalysis";
 import { PerformanceReport } from "./PerformanceReport";
 import { useToast } from "@/hooks/use-toast";
-import { useGesture } from '@/contexts/GestureContext';
-import { Button } from "@/components/ui/button";
 
 interface SessionAnalysisProps {
   audioChunks: Blob[];
@@ -12,16 +10,13 @@ interface SessionAnalysisProps {
 export const SessionAnalysis = ({ audioChunks }: SessionAnalysisProps) => {
   const [showReport, setShowReport] = useState(false);
   const { isAnalyzing, analysis, analyzeSession } = useSessionAnalysis();
-  const { gestureMetrics } = useGesture();
   const { toast } = useToast();
 
   const startAnalysis = async () => {
     try {
       const sessionId = crypto.randomUUID();
-      console.log('Starting analysis for session:', sessionId);
-      console.log('Using gesture metrics:', gestureMetrics);
-      
-      await analyzeSession(audioChunks, sessionId, gestureMetrics);
+      console.log('Analyzing session with ID:', sessionId);
+      await analyzeSession(audioChunks, sessionId);
       setShowReport(true);
       
       toast({
@@ -46,17 +41,13 @@ export const SessionAnalysis = ({ audioChunks }: SessionAnalysisProps) => {
     );
   }
 
-  return (
-    <div className="flex flex-col items-center justify-center gap-4 mt-8">
-      {isAnalyzing ? (
-        <div className="text-center">
-          <p className="text-gray-500">Analyzing your performance...</p>
-        </div>
-      ) : (
-        <Button onClick={startAnalysis} className="w-48">
-          Start Analysis
-        </Button>
-      )}
-    </div>
-  );
+  if (isAnalyzing) {
+    return (
+      <div className="text-center">
+        <p className="text-gray-500">Analyzing your performance...</p>
+      </div>
+    );
+  }
+
+  return null;
 };
