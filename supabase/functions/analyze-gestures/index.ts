@@ -11,9 +11,23 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
+  // Handle HEAD requests
+  if (req.method === 'HEAD') {
+    console.log('Received HEAD request');
+    return new Response(null, {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 200,
+    });
+  }
+
   try {
-    console.log('Analyze-gestures function called');
+    console.log('Analyze-gestures function called with method:', req.method);
     
+    // Only try to parse body for POST requests
+    if (req.method !== 'POST') {
+      throw new Error(`Unsupported method: ${req.method}`);
+    }
+
     // Get the request body
     const body = await req.json();
     console.log('Received request payload:', {
