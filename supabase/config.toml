@@ -1,1 +1,9 @@
 project_id = "uwqntrczavpntsqvqvzf"
+
+[api]
+enabled = true
+url = "https://uwqntrczavpntsqvqvzf.supabase.co"
+
+[functions]
+[functions.analyze-gestures]
+verify_jwt = false
