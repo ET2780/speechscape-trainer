@@ -4,6 +4,7 @@ import { useMediaStream } from '@/hooks/useMediaStream';
 import { FrameCapture } from './gesture/FrameCapture';
 import { analyzeGestureFrames } from '@/services/gestureService';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 export const GestureTracker = () => {
   const { isTracking, updateGestureData } = useGesture();
@@ -37,10 +38,36 @@ export const GestureTracker = () => {
               valid: validFrames.length
             });
           }
+
+          // Upload frames to Supabase storage for later analysis
+          const uploadPromises = validFrames.map(async (frame, index) => {
+            const fileName = `gesture_frame_${Date.now()}_${index}.jpg`;
+            const { data, error } = await supabase.storage
+              .from('gesture-frames')
+              .upload(fileName, frame);
+            
+            if (error) {
+              console.error('Error uploading frame:', error);
+              return null;
+            }
+            return data?.path;
+          });
+
+          const framePaths = await Promise.all(uploadPromises);
+          const validPaths = framePaths.filter(Boolean);
+          
+          console.log('Uploaded frames to storage:', validPaths);
           
           const metrics = await analyzeGestureFrames(validFrames);
           console.log('Received gesture metrics:', metrics);
-          updateGestureData(metrics);
+          
+          // Update metrics with frame paths
+          const metricsWithFrames = {
+            ...metrics,
+            framePaths: validPaths
+          };
+          
+          updateGestureData(metricsWithFrames);
           setFrameBuffer([]); // Clear buffer after processing
           
           toast({
