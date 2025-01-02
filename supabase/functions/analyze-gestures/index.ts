@@ -11,14 +11,12 @@ const corsHeaders = {
 serve(async (req) => {
   console.log('Received request to analyze-gestures function');
   
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     console.log('Handling CORS preflight request');
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    console.log('Starting gesture analysis...');
     if (!openAIApiKey) {
       console.error('OpenAI API key not found in environment variables');
       throw new Error('OpenAI API key not configured');
@@ -29,41 +27,41 @@ serve(async (req) => {
     
     console.log(`Processing ${images.length} gesture frames`);
     if (images.length === 0) {
-      console.error('No images received in request');
       throw new Error('No images provided for analysis');
     }
 
     const analyses = await Promise.all(images.map(async (image: File, index) => {
       console.log(`Processing image ${index + 1}, size: ${image.size} bytes`);
       
-      // Convert image to base64
       const arrayBuffer = await image.arrayBuffer();
       const base64Image = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
-      console.log(`Successfully converted image ${index + 1} to base64`);
 
       const requestBody = {
         model: 'gpt-4o-mini',
         messages: [
           {
             role: 'system',
-            content: `You are an expert presentation coach analyzing body language and facial expressions for a TED-style talk.
-            Focus on: posture, hand gestures, facial expressions, eye contact, and overall stage presence.
-            Provide detailed analysis in JSON format with these fields:
+            content: `You are an expert presentation coach analyzing body language and facial expressions.
+            Focus on:
+            1. Posture and stance
+            2. Hand gestures and their effectiveness
+            3. Facial expressions and engagement
+            4. Eye contact and audience connection
+            5. Overall stage presence and confidence
+            
+            Provide analysis in JSON format with:
             {
               "gestureType": "pointing|waving|openPalm|other",
-              "description": "detailed analysis of the gesture and its impact",
-              "confidence": number between 0-100,
+              "description": "detailed analysis",
+              "confidence": 0-100,
               "impact": "positive|negative|neutral",
-              "suggestions": ["array of specific improvements"]
+              "suggestions": ["specific improvements"]
             }`
           },
           {
             role: 'user',
             content: [
-              { 
-                type: 'text', 
-                text: 'Analyze this presenter\'s body language and facial expressions in detail.' 
-              },
+              { type: 'text', text: 'Analyze this presenter\'s body language and facial expressions.' },
               {
                 type: 'image_url',
                 image_url: {
@@ -92,17 +90,12 @@ serve(async (req) => {
       }
 
       const data = await response.json();
-      console.log(`Received OpenAI response for frame ${index + 1}:`, data);
+      console.log(`Received OpenAI response for frame ${index + 1}`);
       
-      if (!data.choices?.[0]?.message?.content) {
-        console.error(`Invalid response format for frame ${index + 1}:`, data);
-        throw new Error('Invalid response format from OpenAI');
-      }
-
       try {
         const analysis = JSON.parse(data.choices[0].message.content);
         analysis.timestamp = new Date().toISOString();
-        console.log(`Successfully parsed analysis for frame ${index + 1}:`, analysis);
+        console.log(`Successfully parsed analysis for frame ${index + 1}`);
         return analysis;
       } catch (parseError) {
         console.error(`Error parsing OpenAI response for frame ${index + 1}:`, parseError);
@@ -110,27 +103,24 @@ serve(async (req) => {
       }
     }));
 
-    // Calculate metrics based on analyses
     const metrics = {
-      gesturesPerMinute: analyses.length * (60 / 5), // Assuming 5-second intervals
+      gesturesPerMinute: analyses.length * (60 / 30), // 30 seconds of analysis
       gestureTypes: {
         pointing: 0,
         waving: 0,
         openPalm: 0,
         other: 0
       },
-      smoothnessScore: 7.5, // Default score
-      gestureToSpeechRatio: 0.8, // Default ratio
+      smoothnessScore: 7.5,
+      gestureToSpeechRatio: 0.8,
       aiFeedback: null,
       screenshots: [],
       analysis: {}
     };
 
-    // Update gesture types based on analysis
     analyses.forEach((analysis, index) => {
-      const type = analysis.gestureType.toLowerCase();
-      if (metrics.gestureTypes.hasOwnProperty(type)) {
-        metrics.gestureTypes[type]++;
+      if (metrics.gestureTypes.hasOwnProperty(analysis.gestureType)) {
+        metrics.gestureTypes[analysis.gestureType]++;
       } else {
         metrics.gestureTypes.other++;
       }

@@ -40,6 +40,7 @@ export const FrameCapture = ({
         return;
       }
 
+      // Set canvas dimensions to match video
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
       context.drawImage(video, 0, 0, canvas.width, canvas.height);
