@@ -12,10 +12,13 @@ serve(async (req) => {
   }
 
   try {
+    console.log('Analyze-gestures function called');
+    
     const { frames, metadata } = await req.json()
     console.log('Received request for gesture analysis:', {
       frameCount: frames?.length,
-      metadata
+      metadata,
+      headers: Object.fromEntries(req.headers.entries())
     })
 
     // Basic validation
@@ -62,7 +65,7 @@ serve(async (req) => {
                    Detected an average of ${gesturesPerMinute} gestures per minute.`
     }
 
-    console.log('Final metrics object:', metrics)
+    console.log('Sending response with metrics:', metrics)
 
     return new Response(
       JSON.stringify(metrics),

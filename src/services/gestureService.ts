@@ -44,10 +44,11 @@ export const analyzeGestureFrames = async (frames: Blob[]): Promise<any> => {
       }
     };
 
-    console.log('Sending analysis payload:', {
+    console.log('Sending analysis payload to edge function:', {
       frameCount: payload.metadata.frameCount,
       timestamp: payload.metadata.timestamp,
-      averageSize: payload.metadata.averageSize
+      averageSize: payload.metadata.averageSize,
+      endpoint: 'https://uwqntrczavpntsqvqvzf.supabase.co/functions/v1/analyze-gestures'
     });
 
     // Call edge function for analysis
