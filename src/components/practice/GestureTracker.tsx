@@ -3,7 +3,7 @@ import { useGesture } from '@/contexts/GestureContext';
 import { useMediaStream } from '@/hooks/useMediaStream';
 import { FrameCapture } from './gesture/FrameCapture';
 import { analyzeGestureFrames } from '@/services/gestureService';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
 export const GestureTracker = () => {
@@ -11,7 +11,6 @@ export const GestureTracker = () => {
   const { stream, error, startStream, stopStream } = useMediaStream();
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [frameBuffer, setFrameBuffer] = useState<Blob[]>([]);
-  const { toast } = useToast();
 
   useEffect(() => {
     if (isTracking) {
@@ -102,17 +101,12 @@ export const GestureTracker = () => {
       
       updateGestureData(metricsWithFrames);
       
-      toast({
-        title: "Gesture Analysis",
-        description: `Successfully analyzed ${validFrames.length} frames`,
-      });
+      toast('Successfully analyzed ' + validFrames.length + ' frames');
     } catch (err) {
       console.error('Error analyzing frames:', err);
       setAnalysisError('Failed to analyze gestures');
-      toast({
-        title: "Analysis Error",
-        description: "Failed to analyze gestures. Please try again.",
-        variant: "destructive",
+      toast('Failed to analyze gestures. Please try again.', {
+        description: err.message,
       });
     }
   };

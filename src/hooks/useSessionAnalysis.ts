@@ -1,13 +1,12 @@
 import { useState } from 'react';
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/hooks/use-toast";
 import { CombinedAnalysis, GestureMetrics } from "@/types/analysis";
 
 export const useSessionAnalysis = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState<CombinedAnalysis | null>(null);
   const [progress, setProgress] = useState(0);
-  const { toast } = useToast();
 
   const analyzeSession = async (audioChunks: Blob[], sessionId: string, gestureMetrics: GestureMetrics) => {
     console.log('Starting session analysis...', { 
@@ -96,18 +95,13 @@ export const useSessionAnalysis = () => {
       setAnalysis(combinedAnalysis);
       setProgress(100);
 
-      toast({
-        title: "Analysis Complete",
-        description: "Your practice session has been analyzed and saved",
-      });
+      toast('Your practice session has been analyzed and saved');
 
       return combinedAnalysis;
     } catch (error) {
       console.error('Error analyzing session:', error);
-      toast({
-        title: "Analysis Error",
+      toast('Analysis Error', {
         description: error.message || "Failed to analyze your practice session",
-        variant: "destructive",
       });
       throw error;
     } finally {

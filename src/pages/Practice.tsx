@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/hooks/use-toast";
 import { generateInterviewQuestions } from "@/utils/openai";
 import { PracticeTypeSelector } from "@/components/practice/PracticeTypeSelector";
 import { SlideUpload } from "@/components/practice/SlideUpload";
@@ -31,10 +31,8 @@ const Practice = () => {
     if (!selectedFile) return;
 
     if (!selectedFile.type.includes('pdf') && !selectedFile.type.includes('powerpoint')) {
-      toast({
-        title: "Invalid file type",
+      toast('Invalid file type', {
         description: "Please upload a PDF or PPTX file",
-        variant: "destructive",
       });
       return;
     }
@@ -46,22 +44,18 @@ const Practice = () => {
     try {
       setIsLoading(true);
       
-      // Get user and check authentication
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       console.log("Auth check:", { user, userError });
       
       if (!user || userError) {
         console.error("Authentication error:", userError);
-        toast({
-          title: "Authentication required",
+        toast('Authentication required', {
           description: "Please sign in to continue",
-          variant: "destructive",
         });
         return;
       }
 
       let uploadedSlideUrl = '';
-      // Only attempt file upload if a file was selected
       if (practiceType === 'presentation' && file) {
         const fileExt = file.name.split('.').pop();
         const filePath = `${user.id}/${crypto.randomUUID()}.${fileExt}`;
@@ -79,11 +73,10 @@ const Practice = () => {
 
         if (uploadError) {
           console.error("Upload error:", uploadError);
-          // Don't throw the error, just show a warning toast
           toast({
             title: "File upload failed",
             description: "Continuing without slides",
-            variant: "default", // Changed from "warning" to "default"
+            variant: "default",
           });
         } else {
           const { data: { publicUrl } } = supabase.storage
@@ -125,18 +118,15 @@ const Practice = () => {
         throw sessionError;
       }
 
-      toast({
-        title: "Session started",
+      toast('Session started', {
         description: "Your practice environment is ready",
       });
 
       setSessionStarted(true);
     } catch (error) {
       console.error('Error setting up practice:', error);
-      toast({
-        title: "Error",
+      toast('Error', {
         description: error.message || "Failed to set up practice session",
-        variant: "destructive",
       });
     } finally {
       setIsLoading(false);

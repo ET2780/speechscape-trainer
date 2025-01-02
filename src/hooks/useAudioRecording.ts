@@ -1,11 +1,10 @@
 import { useState, useRef, useCallback } from 'react';
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/hooks/use-toast";
 
 export const useAudioRecording = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [audioChunks, setAudioChunks] = useState<Blob[]>([]);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const { toast } = useToast();
 
   const startRecording = async () => {
     try {
@@ -46,10 +45,8 @@ export const useAudioRecording = () => {
       console.log('Recording started successfully');
     } catch (error) {
       console.error('Error accessing microphone:', error);
-      toast({
-        title: "Recording Error",
-        description: "Please allow microphone access to use this feature",
-        variant: "destructive",
+      toast('Please allow microphone access to use this feature', {
+        description: error.message,
       });
       throw new Error('Please allow microphone access to use this feature');
     }

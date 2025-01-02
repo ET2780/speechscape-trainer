@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useSessionAnalysis } from "@/hooks/useSessionAnalysis";
 import { PerformanceReport } from "./PerformanceReport";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/hooks/use-toast";
 import { useGesture } from '@/contexts/GestureContext';
 import { Button } from "@/components/ui/button";
 
@@ -13,7 +13,6 @@ export const SessionAnalysis = ({ audioChunks }: SessionAnalysisProps) => {
   const [showReport, setShowReport] = useState(false);
   const { isAnalyzing, analysis, analyzeSession } = useSessionAnalysis();
   const { gestureMetrics } = useGesture();
-  const { toast } = useToast();
 
   const startAnalysis = async () => {
     try {
@@ -24,16 +23,11 @@ export const SessionAnalysis = ({ audioChunks }: SessionAnalysisProps) => {
       await analyzeSession(audioChunks, sessionId, gestureMetrics);
       setShowReport(true);
       
-      toast({
-        title: "Analysis Complete",
-        description: "Your practice session has been analyzed",
-      });
+      toast('Your practice session has been analyzed');
     } catch (error) {
       console.error('Failed to analyze session:', error);
-      toast({
-        title: "Analysis Error",
-        description: "Failed to analyze your practice session",
-        variant: "destructive",
+      toast('Failed to analyze your practice session', {
+        description: error.message,
       });
     }
   };

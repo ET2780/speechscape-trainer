@@ -2,14 +2,13 @@ import { useState, useEffect } from 'react';
 import { useCamera } from "@/hooks/useCamera";
 import { useAudioRecording } from "@/hooks/useAudioRecording";
 import { useGesture } from "@/contexts/GestureContext";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/hooks/use-toast";
 
 export const useSessionResources = (isSessionActive: boolean) => {
   const [resourcesInitialized, setResourcesInitialized] = useState(false);
   const { videoRef, error: cameraError, startCamera, stopCamera } = useCamera();
   const { isRecording, audioChunks, startRecording, stopRecording } = useAudioRecording();
   const { startTracking, stopTracking } = useGesture();
-  const { toast } = useToast();
 
   useEffect(() => {
     if (!isSessionActive) return;
@@ -28,17 +27,12 @@ export const useSessionResources = (isSessionActive: boolean) => {
         
         setResourcesInitialized(true);
         
-        toast({
-          title: "Session Started",
-          description: "Recording and analysis have begun",
-        });
+        toast('Recording and analysis have begun');
       } catch (error) {
         console.error('Error setting up session:', error);
         setResourcesInitialized(false);
-        toast({
-          title: "Setup Error",
+        toast('Setup Error', {
           description: "Failed to start recording session. Please check your camera and microphone permissions.",
-          variant: "destructive",
         });
       }
     };
