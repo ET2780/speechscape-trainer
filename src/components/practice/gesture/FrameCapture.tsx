@@ -39,8 +39,10 @@ export const FrameCapture = ({
       
       if (!videoRef.current || !canvasRef.current) return;
       
+      console.log('Initializing body tracker...');
       trackerRef.current = new BodyTracker(videoRef.current, canvasRef.current);
       trackerRef.current.start();
+      console.log('Body tracker initialized and started');
     };
 
     const intervalId = setInterval(async () => {
@@ -50,6 +52,7 @@ export const FrameCapture = ({
       }
 
       try {
+        console.log('Attempting to capture frame...');
         const blob = await trackerRef.current.captureFrame();
         console.log('Captured frame with body tracking:', blob.size, 'bytes');
         onFrame(blob);
@@ -61,7 +64,10 @@ export const FrameCapture = ({
     return () => {
       console.log('Cleaning up frame capture and body tracking...');
       clearInterval(intervalId);
-      trackerRef.current?.stop();
+      if (trackerRef.current) {
+        trackerRef.current.stop();
+        console.log('Body tracker stopped');
+      }
     };
   }, [stream, onFrame, captureInterval]);
 

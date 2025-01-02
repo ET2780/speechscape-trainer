@@ -29,7 +29,16 @@ export const GestureTracker = () => {
           console.log('Processing frame buffer:', frameBuffer.length, 'frames');
           console.log('Frame sizes:', frameBuffer.map(frame => frame.size));
           
-          const metrics = await analyzeGestureFrames(frameBuffer);
+          // Validate frames before processing
+          const validFrames = frameBuffer.filter(frame => frame && frame.size > 0);
+          if (validFrames.length !== frameBuffer.length) {
+            console.error('Some frames are invalid:', {
+              total: frameBuffer.length,
+              valid: validFrames.length
+            });
+          }
+          
+          const metrics = await analyzeGestureFrames(validFrames);
           console.log('Received gesture metrics:', metrics);
           updateGestureData(metrics);
           setFrameBuffer([]); // Clear buffer after processing
