@@ -46,9 +46,7 @@ const Practice = () => {
       
       if (!user || userError) {
         console.error("Authentication error:", userError);
-        toast('Authentication required', {
-          description: "Please sign in to continue",
-        });
+        toast("Please sign in to continue");
         return;
       }
 
@@ -70,11 +68,7 @@ const Practice = () => {
 
         if (uploadError) {
           console.error("Upload error:", uploadError);
-          toast({
-            title: "File upload failed",
-            description: "Continuing without slides",
-            variant: "default",
-          });
+          toast("File upload failed. Continuing without slides");
         } else {
           const { data: { publicUrl } } = supabase.storage
             .from('slides')
@@ -115,16 +109,11 @@ const Practice = () => {
         throw sessionError;
       }
 
-      toast('Session started', {
-        description: "Your practice environment is ready",
-      });
-
+      toast("Your practice environment is ready");
       setSessionStarted(true);
     } catch (error) {
       console.error('Error setting up practice:', error);
-      toast('Error', {
-        description: error.message || "Failed to set up practice session",
-      });
+      toast(error.message || "Failed to set up practice session");
     } finally {
       setIsLoading(false);
     }
