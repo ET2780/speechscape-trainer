@@ -15,6 +15,12 @@ export class PoseEstimator {
 
   async initialize() {
     try {
+      console.log('PoseEstimator: Setting up TensorFlow backend...');
+      // First, explicitly set and initialize the WebGL backend
+      await tf.setBackend('webgl');
+      await tf.ready();
+      console.log('PoseEstimator: TensorFlow backend initialized:', tf.getBackend());
+
       console.log('PoseEstimator: Loading PoseNet model...');
       this.net = await posenet.load({
         architecture: 'MobileNetV1',
@@ -23,6 +29,8 @@ export class PoseEstimator {
         multiplier: 0.75,
         quantBytes: 2
       });
+      
+      this.isEstimating = true;
       console.log('PoseEstimator: Model loaded successfully');
       return true;
     } catch (error) {
@@ -144,6 +152,8 @@ export class PoseEstimator {
   stop() {
     this.isEstimating = false;
     console.log('PoseEstimator: Stopped estimation');
+    // Clean up TensorFlow resources
+    tf.disposeVariables();
   }
 
   isActive(): boolean {
