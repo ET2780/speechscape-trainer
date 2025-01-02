@@ -14,33 +14,36 @@ serve(async (req) => {
   try {
     console.log('Analyze-gestures function called');
     
-    const { frames, metadata } = await req.json()
+    const body = await req.text();
+    console.log('Raw request body:', body);
+    
+    const { frames, metadata } = JSON.parse(body);
     console.log('Received request for gesture analysis:', {
       frameCount: frames?.length,
       metadata,
       headers: Object.fromEntries(req.headers.entries())
-    })
+    });
 
     // Basic validation
     if (!Array.isArray(frames) || frames.length === 0) {
-      console.error('Invalid or empty frames array received')
-      throw new Error('Invalid frames data')
+      console.error('Invalid or empty frames array received');
+      throw new Error('Invalid frames data');
     }
 
     // Calculate frame statistics
-    const frameCount = frames.length
-    const timestamp = metadata?.timestamp || Date.now()
-    const averageSize = metadata?.averageSize || 0
+    const frameCount = frames.length;
+    const timestamp = metadata?.timestamp || Date.now();
+    const averageSize = metadata?.averageSize || 0;
     
     console.log('Analysis statistics:', {
       frameCount,
       averageSize,
       timestamp: new Date(timestamp).toISOString()
-    })
+    });
 
     // Calculate metrics based on frame data
-    const gesturesPerMinute = Math.round((frameCount / 15) * 60) // Assuming 15-second intervals
-    const smoothnessScore = Math.min(10, Math.max(1, 10 * (1 - (averageSize / 1000000))))
+    const gesturesPerMinute = Math.round((frameCount / 15) * 60); // Assuming 15-second intervals
+    const smoothnessScore = Math.min(10, Math.max(1, 10 * (1 - (averageSize / 1000000))));
     
     // Calculate gesture types distribution
     const gestureTypes = {
@@ -48,24 +51,24 @@ serve(async (req) => {
       waving: Math.round(frameCount * 0.2),
       openPalm: Math.round(frameCount * 0.3),
       other: Math.round(frameCount * 0.2)
-    }
+    };
 
     console.log('Calculated metrics:', {
       gesturesPerMinute,
       smoothnessScore,
       gestureTypes
-    })
+    });
 
     const metrics = {
       gesturesPerMinute,
       gestureTypes,
       smoothnessScore,
-      gestureToSpeechRatio: 75, // This could be calculated based on speech data if available
+      gestureToSpeechRatio: 75,
       aiFeedback: `Analyzed ${frameCount} frames captured at ${new Date(timestamp).toISOString()}. 
                    Detected an average of ${gesturesPerMinute} gestures per minute.`
-    }
+    };
 
-    console.log('Sending response with metrics:', metrics)
+    console.log('Sending response with metrics:', metrics);
 
     return new Response(
       JSON.stringify(metrics),
@@ -73,15 +76,15 @@ serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
       },
-    )
+    );
   } catch (error) {
-    console.error('Error processing gesture frames:', error)
+    console.error('Error processing gesture frames:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500,
       },
-    )
+    );
   }
-})
+});

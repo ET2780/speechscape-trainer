@@ -20,8 +20,10 @@ export const analyzeGestureFrames = async (frames: Blob[]): Promise<any> => {
         const reader = new FileReader();
         reader.onloadend = () => {
           const base64 = reader.result as string;
-          console.log('Frame converted to base64, length:', base64.length);
-          resolve(base64);
+          // Remove the data URL prefix to save bandwidth
+          const base64Data = (base64 as string).split(',')[1];
+          console.log('Frame converted to base64, length:', base64Data.length);
+          resolve(base64Data);
         };
         reader.onerror = () => {
           console.error('Error reading frame:', reader.error);
@@ -53,7 +55,7 @@ export const analyzeGestureFrames = async (frames: Blob[]): Promise<any> => {
 
     // Call edge function for analysis
     const { data, error } = await supabase.functions.invoke('analyze-gestures', {
-      body: payload
+      body: JSON.stringify(payload)
     });
 
     if (error) {
