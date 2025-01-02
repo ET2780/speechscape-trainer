@@ -8,6 +8,9 @@ const corsHeaders = {
 
 serve(async (req) => {
   console.log('analyze-gestures function invoked');
+  console.log('Request URL:', req.url);
+  console.log('Request method:', req.method);
+  console.log('Request headers:', Object.fromEntries(req.headers.entries()));
   
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -16,12 +19,24 @@ serve(async (req) => {
   }
 
   try {
-    console.log('Request method:', req.method);
-    console.log('Request headers:', Object.fromEntries(req.headers.entries()));
+    const contentType = req.headers.get('content-type');
+    console.log('Content-Type:', contentType);
     
-    const body = await req.json();
-    console.log('Received request body:', body);
+    if (!contentType?.includes('application/json')) {
+      console.error('Invalid content type:', contentType);
+      return new Response(
+        JSON.stringify({ error: 'Content-Type must be application/json' }),
+        { 
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
 
+    const body = await req.json();
+    console.log('Request body structure:', Object.keys(body));
+    console.log('Frames array length:', body.frames?.length);
+    
     if (!body.frames || !Array.isArray(body.frames)) {
       console.error('Invalid or missing frames in request');
       return new Response(
@@ -33,7 +48,23 @@ serve(async (req) => {
       );
     }
 
-    console.log('Processing', body.frames.length, 'frames');
+    // Validate frame data
+    const validFrames = body.frames.every((frame: string) => 
+      typeof frame === 'string' && frame.length > 0
+    );
+
+    if (!validFrames) {
+      console.error('Invalid frame data detected');
+      return new Response(
+        JSON.stringify({ error: 'Invalid frame data format' }),
+        { 
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
+
+    console.log('Processing', body.frames.length, 'valid frames');
     
     // Mock analysis for testing
     const mockMetrics = {
@@ -60,8 +91,18 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error processing request:', error);
+    console.error('Error details:', {
+      name: error.name,
+      message: error.message,
+      stack: error.stack
+    });
+    
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: error.message,
+        type: error.name,
+        details: error.stack
+      }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500
