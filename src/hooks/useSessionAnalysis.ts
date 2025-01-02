@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { CombinedAnalysis } from "@/types/analysis";
+import { CombinedAnalysis, GestureMetrics } from "@/types/analysis";
 
 export const useSessionAnalysis = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -9,8 +9,12 @@ export const useSessionAnalysis = () => {
   const [progress, setProgress] = useState(0);
   const { toast } = useToast();
 
-  const analyzeSession = async (audioChunks: Blob[], sessionId: string) => {
-    console.log('Starting session analysis...', { chunksCount: audioChunks.length });
+  const analyzeSession = async (audioChunks: Blob[], sessionId: string, gestureMetrics: GestureMetrics) => {
+    console.log('Starting session analysis...', { 
+      chunksCount: audioChunks.length,
+      gestureMetrics 
+    });
+    
     setIsAnalyzing(true);
     setProgress(0);
 
@@ -28,36 +32,43 @@ export const useSessionAnalysis = () => {
       formData.append('userId', user.id);
 
       console.log('Sending audio for transcription and analysis');
-      const { data, error } = await supabase.functions.invoke('analyze-speech', {
+      const { data: speechData, error: speechError } = await supabase.functions.invoke('analyze-speech', {
         body: formData,
       });
 
-      if (error) {
-        console.error('Error from edge function:', error);
-        throw error;
+      if (speechError) {
+        console.error('Error from speech analysis:', speechError);
+        throw speechError;
       }
 
-      if (!data) {
-        throw new Error('No data received from analysis');
+      if (!speechData) {
+        throw new Error('No data received from speech analysis');
       }
 
-      console.log('Analysis results:', data);
+      console.log('Speech analysis results:', speechData);
       
-      // Create combined analysis with default gesture metrics
+      // Store the complete analysis including gesture data
+      const { error: storageError } = await supabase
+        .from('performance_reports')
+        .insert({
+          session_id: sessionId,
+          user_id: user.id,
+          speech_analysis: speechData,
+          gesture_analysis: {
+            metrics: gestureMetrics,
+            timestamp: new Date().toISOString()
+          }
+        });
+
+      if (storageError) {
+        console.error('Error storing analysis:', storageError);
+        throw storageError;
+      }
+
+      // Create combined analysis
       const combinedAnalysis: CombinedAnalysis = {
-        speech: data,
-        gesture: {
-          gesturesPerMinute: 0,
-          gestureTypes: {
-            pointing: 0,
-            waving: 0,
-            openPalm: 0,
-            other: 0
-          },
-          smoothnessScore: 0,
-          gestureToSpeechRatio: 0,
-          aiFeedback: null
-        }
+        speech: speechData,
+        gesture: gestureMetrics
       };
 
       setAnalysis(combinedAnalysis);
@@ -65,7 +76,7 @@ export const useSessionAnalysis = () => {
 
       toast({
         title: "Analysis Complete",
-        description: "Your practice session has been analyzed",
+        description: "Your practice session has been analyzed and saved",
       });
 
       return combinedAnalysis;

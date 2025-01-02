@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useSessionAnalysis } from "@/hooks/useSessionAnalysis";
 import { PerformanceReport } from "./PerformanceReport";
 import { useToast } from "@/hooks/use-toast";
+import { useGesture } from '@/contexts/GestureContext';
 
 interface SessionAnalysisProps {
   audioChunks: Blob[];
@@ -10,13 +11,16 @@ interface SessionAnalysisProps {
 export const SessionAnalysis = ({ audioChunks }: SessionAnalysisProps) => {
   const [showReport, setShowReport] = useState(false);
   const { isAnalyzing, analysis, analyzeSession } = useSessionAnalysis();
+  const { gestureMetrics } = useGesture();
   const { toast } = useToast();
 
   const startAnalysis = async () => {
     try {
       const sessionId = crypto.randomUUID();
-      console.log('Analyzing session with ID:', sessionId);
-      await analyzeSession(audioChunks, sessionId);
+      console.log('Analyzing session with ID:', sessionId, 'with gesture metrics:', gestureMetrics);
+      
+      // Include gesture metrics in the analysis
+      await analyzeSession(audioChunks, sessionId, gestureMetrics);
       setShowReport(true);
       
       toast({
