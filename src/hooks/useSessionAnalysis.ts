@@ -12,6 +12,7 @@ export const useSessionAnalysis = () => {
   const analyzeSession = async (audioChunks: Blob[], sessionId: string, gestureMetrics: GestureMetrics) => {
     console.log('Starting session analysis...', { 
       chunksCount: audioChunks.length,
+      sessionId,
       gestureMetrics 
     });
     
@@ -19,16 +20,37 @@ export const useSessionAnalysis = () => {
     setProgress(0);
 
     try {
-      // Combine all audio chunks into a single blob
+      // Get authenticated user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (!userError && !user) {
+        throw new Error('User not authenticated');
+      }
+      if (userError) {
+        console.error('Auth error:', userError);
+        throw userError;
+      }
+
+      // First create the practice session record
+      const { error: sessionError } = await supabase
+        .from('practice_sessions')
+        .insert({
+          id: sessionId,
+          user_id: user.id,
+          practice_type: 'presentation', // You might want to make this dynamic
+        });
+
+      if (sessionError) {
+        console.error('Error creating practice session:', sessionError);
+        throw sessionError;
+      }
+
+      // Combine audio chunks into a single blob
       const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
       console.log('Combined audio blob size:', audioBlob.size);
 
       const formData = new FormData();
       formData.append('audio', audioBlob, 'recording.webm');
       formData.append('sessionId', sessionId);
-      
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not authenticated');
       formData.append('userId', user.id);
 
       console.log('Sending audio for transcription and analysis');
