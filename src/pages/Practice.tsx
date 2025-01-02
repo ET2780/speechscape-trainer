@@ -10,10 +10,11 @@ const Practice = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [sessionStarted, setSessionStarted] = useState(false);
-  const [practiceType, setPracticeType] = useState<string>("");
+  const [practiceType, setPracticeType] = useState<'presentation' | 'interview'>('presentation');
   const [jobType, setJobType] = useState<string>("");
   const [industry, setIndustry] = useState<string>("");
   const [slideFile, setSlideFile] = useState<File | null>(null);
+  const [slideUrl, setSlideUrl] = useState<string | null>(null);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -35,7 +36,7 @@ const Practice = () => {
         return;
       }
 
-      let slideUrl = null;
+      let uploadedSlideUrl = null;
       if (slideFile) {
         const fileExt = slideFile.name.split('.').pop();
         const fileName = `${user.id}/${Date.now()}.${fileExt}`;
@@ -54,7 +55,8 @@ const Practice = () => {
           const { data: { publicUrl } } = supabase.storage
             .from('slides')
             .getPublicUrl(fileName);
-          slideUrl = publicUrl;
+          uploadedSlideUrl = publicUrl;
+          setSlideUrl(uploadedSlideUrl);
         }
       }
 
@@ -65,7 +67,7 @@ const Practice = () => {
           practice_type: practiceType,
           job_type: jobType,
           industry: industry,
-          slide_url: slideUrl,
+          slide_url: uploadedSlideUrl,
         });
 
       if (sessionError) {
@@ -84,7 +86,14 @@ const Practice = () => {
   };
 
   if (sessionStarted) {
-    return <PracticeSession />;
+    return (
+      <PracticeSession
+        practiceType={practiceType}
+        slideUrl={slideUrl}
+        jobType={jobType}
+        industry={industry}
+      />
+    );
   }
 
   return (
@@ -98,18 +107,14 @@ const Practice = () => {
         </div>
 
         <PracticeTypeSelector
-          practiceType={practiceType}
-          setPracticeType={setPracticeType}
-          jobType={jobType}
-          setJobType={setJobType}
-          industry={industry}
-          setIndustry={setIndustry}
+          value={practiceType}
+          onChange={setPracticeType}
         />
 
         {practiceType === "presentation" && (
           <SlideUpload
-            slideFile={slideFile}
-            setSlideFile={setSlideFile}
+            onFileChange={(e) => setSlideFile(e.target.files?.[0] || null)}
+            file={slideFile}
           />
         )}
 
