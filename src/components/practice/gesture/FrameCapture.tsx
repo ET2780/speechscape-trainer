@@ -2,6 +2,7 @@ import { useRef, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
+import { BodyTracker } from '@/utils/bodyTracking';
 
 interface FrameCaptureProps {
   stream: MediaStream | null;
@@ -18,56 +19,36 @@ export const FrameCapture = ({
 }: FrameCaptureProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-
-  useEffect(() => {
-    if (!stream || !videoRef.current) return;
-    
-    videoRef.current.srcObject = stream;
-  }, [stream]);
+  const trackerRef = useRef<BodyTracker | null>(null);
 
   useEffect(() => {
     if (!stream || !videoRef.current || !canvasRef.current) return;
+    
+    videoRef.current.srcObject = stream;
+    trackerRef.current = new BodyTracker(videoRef.current, canvasRef.current);
+    trackerRef.current.start();
 
-    console.log('Setting up frame capture interval...');
-    const intervalId = setInterval(() => {
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-      if (!video || !canvas || video.readyState !== video.HAVE_ENOUGH_DATA) {
-        console.log('Video not ready for capture');
+    console.log('Setting up frame capture with body tracking...');
+    
+    const intervalId = setInterval(async () => {
+      if (!trackerRef.current) {
+        console.log('Tracker not initialized');
         return;
       }
 
-      const context = canvas.getContext('2d');
-      if (!context) {
-        console.error('Canvas context not available');
-        return;
+      try {
+        const blob = await trackerRef.current.captureFrame();
+        console.log('Captured frame with body tracking:', blob.size, 'bytes');
+        onFrame(blob);
+      } catch (error) {
+        console.error('Error capturing frame:', error);
       }
-
-      // Set canvas dimensions to match video
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      
-      // Draw the video frame to the canvas
-      context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-      // Convert the canvas to a blob
-      canvas.toBlob(
-        (blob) => {
-          if (!blob) {
-            console.error('Failed to create blob from canvas');
-            return;
-          }
-          console.log('Captured frame:', blob.size, 'bytes');
-          onFrame(blob);
-        },
-        'image/jpeg',
-        0.8
-      );
     }, captureInterval);
 
     return () => {
-      console.log('Cleaning up frame capture interval');
+      console.log('Cleaning up frame capture and body tracking...');
       clearInterval(intervalId);
+      trackerRef.current?.stop();
     };
   }, [stream, onFrame, captureInterval]);
 
@@ -90,11 +71,14 @@ export const FrameCapture = ({
           autoPlay
           playsInline
           muted
-          className="hidden"
+          className="w-full aspect-video object-cover rounded-lg"
         />
-        <canvas ref={canvasRef} className="hidden" />
-        <div className="p-4 text-center text-sm text-muted-foreground">
-          Gesture analysis active - capturing frames every {captureInterval / 1000} seconds
+        <canvas
+          ref={canvasRef}
+          className="absolute top-0 left-0 w-full h-full pointer-events-none"
+        />
+        <div className="absolute bottom-4 right-4 bg-black/50 text-white px-2 py-1 rounded text-sm">
+          Body Tracking Active
         </div>
       </div>
     </Card>

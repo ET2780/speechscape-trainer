@@ -25,37 +25,39 @@ serve(async (req) => {
     const formData = await req.formData();
     const images = formData.getAll('images');
     
-    console.log(`Processing ${images.length} gesture frames`);
+    console.log(`Processing ${images.length} gesture frames with body tracking data`);
     if (images.length === 0) {
       throw new Error('No images provided for analysis');
     }
 
     const analyses = await Promise.all(images.map(async (image: File, index) => {
-      console.log(`Processing image ${index + 1}, size: ${image.size} bytes`);
+      console.log(`Processing image ${index + 1} with body tracking, size: ${image.size} bytes`);
       
       const arrayBuffer = await image.arrayBuffer();
       const base64Image = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
 
       const requestBody = {
-        model: 'gpt-4o-mini',
+        model: 'gpt-4-vision-preview',
         messages: [
           {
             role: 'system',
             content: `You are an expert presentation coach analyzing body language and facial expressions.
+            The images provided include body tracking data visualized as red highlights.
             Focus on:
-            1. Posture and stance - evaluate confidence and presence
-            2. Hand gestures - assess naturalness and effectiveness
-            3. Facial expressions - analyze engagement and emotional connection
-            4. Eye contact - evaluate audience connection
-            5. Overall presence - assess professionalism and authenticity
+            1. Body positioning and movement patterns
+            2. Gesture amplitude and frequency
+            3. Facial expressions and engagement
+            4. Stage presence and space utilization
+            5. Overall body language confidence
             
             Provide analysis in JSON format with:
             {
               "gestureType": "pointing|waving|openPalm|other",
-              "description": "detailed analysis of the presenter's body language",
+              "description": "detailed analysis including tracked body movements",
               "confidence": 0-100,
               "impact": "positive|negative|neutral",
-              "suggestions": ["specific improvements"]
+              "suggestions": ["specific improvements"],
+              "movementPatterns": ["observed patterns"]
             }`
           },
           {
@@ -63,7 +65,7 @@ serve(async (req) => {
             content: [
               { 
                 type: 'text', 
-                text: 'Analyze this presenter\'s body language and facial expressions in the context of a professional presentation.' 
+                text: 'Analyze this presenter\'s body language, facial expressions, and movement patterns (highlighted in red).' 
               },
               {
                 type: 'image_url',
@@ -73,10 +75,11 @@ serve(async (req) => {
               }
             ]
           }
-        ]
+        ],
+        max_tokens: 1000
       };
 
-      console.log(`Sending request to OpenAI for frame ${index + 1}`);
+      console.log(`Sending request to OpenAI for frame ${index + 1} with body tracking analysis`);
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -93,12 +96,12 @@ serve(async (req) => {
       }
 
       const data = await response.json();
-      console.log(`Received OpenAI response for frame ${index + 1}`);
+      console.log(`Received OpenAI response for frame ${index + 1} with body tracking analysis`);
       
       try {
         const analysis = JSON.parse(data.choices[0].message.content);
         analysis.timestamp = new Date().toISOString();
-        console.log(`Successfully parsed analysis for frame ${index + 1}`);
+        console.log(`Successfully parsed analysis for frame ${index + 1} with movement patterns`);
         return analysis;
       } catch (parseError) {
         console.error(`Error parsing OpenAI response for frame ${index + 1}:`, parseError);
@@ -114,9 +117,9 @@ serve(async (req) => {
         openPalm: 0,
         other: 0
       },
-      smoothnessScore: 7.5,
+      smoothnessScore: calculateSmoothnessScore(analyses),
       gestureToSpeechRatio: 0.8,
-      aiFeedback: null,
+      aiFeedback: generateOverallFeedback(analyses),
       screenshots: [],
       analysis: analyses.reduce((acc, analysis, index) => {
         acc[index] = analysis;
@@ -132,17 +135,37 @@ serve(async (req) => {
       }
     });
 
-    console.log('Final metrics calculated:', metrics);
+    console.log('Final metrics calculated with body tracking analysis:', metrics);
 
     return new Response(
       JSON.stringify({ metrics }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
-    console.error('Error analyzing gestures:', error);
+    console.error('Error analyzing gestures with body tracking:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
     );
   }
 });
+
+function calculateSmoothnessScore(analyses: any[]): number {
+  // Calculate smoothness based on movement patterns
+  const hasConsistentMovements = analyses.some(a => 
+    a.movementPatterns && a.movementPatterns.length > 0
+  );
+  return hasConsistentMovements ? 8.5 : 6.0;
+}
+
+function generateOverallFeedback(analyses: any[]): string {
+  const patterns = analyses.flatMap(a => a.movementPatterns || []);
+  const uniquePatterns = [...new Set(patterns)];
+  
+  if (uniquePatterns.length === 0) {
+    return "No significant movement patterns detected. Consider being more dynamic in your presentation.";
+  }
+  
+  return `Observed movement patterns: ${uniquePatterns.join(', ')}. ` +
+         `Overall, your body language shows ${analyses[0]?.impact || 'mixed'} impact.`;
+}
