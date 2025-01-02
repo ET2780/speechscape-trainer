@@ -15,7 +15,7 @@ export const FrameCapture = ({
   stream, 
   error, 
   onFrame,
-  captureInterval = 5000 // Capture every 5 seconds
+  captureInterval = 2000 // Capture every 2 seconds for more frequent analysis
 }: FrameCaptureProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -30,8 +30,7 @@ export const FrameCapture = ({
     console.log('Setting up frame capture with body tracking...');
     videoRef.current.srcObject = stream;
     
-    // Wait for video to be ready before initializing tracker
-    videoRef.current.onloadedmetadata = () => {
+    videoRef.current.onloadedmetadata = async () => {
       console.log('Video metadata loaded, dimensions:', {
         width: videoRef.current?.videoWidth,
         height: videoRef.current?.videoHeight
@@ -41,28 +40,36 @@ export const FrameCapture = ({
       
       console.log('Initializing body tracker...');
       trackerRef.current = new BodyTracker(videoRef.current, canvasRef.current);
-      trackerRef.current.start();
+      await trackerRef.current.start();
       console.log('Body tracker initialized and started');
     };
 
-    const intervalId = setInterval(async () => {
+    const captureFrame = async () => {
       if (!trackerRef.current) {
         console.log('Tracker not initialized yet');
         return;
       }
 
       try {
-        console.log('Attempting to capture frame...');
+        console.log('Capturing frame...');
         const blob = await trackerRef.current.captureFrame();
-        console.log('Captured frame with body tracking:', blob.size, 'bytes');
-        onFrame(blob);
+        console.log('Frame captured:', blob.size, 'bytes');
+        
+        if (blob.size > 0) {
+          console.log('Valid frame captured, sending for processing');
+          onFrame(blob);
+        } else {
+          console.warn('Invalid frame captured (size: 0)');
+        }
       } catch (error) {
         console.error('Error capturing frame:', error);
       }
-    }, captureInterval);
+    };
+
+    const intervalId = setInterval(captureFrame, captureInterval);
 
     return () => {
-      console.log('Cleaning up frame capture and body tracking...');
+      console.log('Cleaning up frame capture...');
       clearInterval(intervalId);
       if (trackerRef.current) {
         trackerRef.current.stop();
