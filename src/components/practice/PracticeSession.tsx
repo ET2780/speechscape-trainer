@@ -26,6 +26,7 @@ export const PracticeSession: React.FC<PracticeSessionProps> = ({
 }) => {
   const [isSessionActive, setIsSessionActive] = useState(true);
   const [showReport, setShowReport] = useState(false);
+  const [resourcesInitialized, setResourcesInitialized] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
   
@@ -49,12 +50,15 @@ export const PracticeSession: React.FC<PracticeSessionProps> = ({
         console.log('Starting gesture tracking...');
         startTracking();
         
+        setResourcesInitialized(true);
+        
         toast({
           title: "Session Started",
           description: "Recording and analysis have begun",
         });
       } catch (error) {
         console.error('Error setting up session:', error);
+        setResourcesInitialized(false);
         toast({
           title: "Setup Error",
           description: "Failed to start recording session. Please check your camera and microphone permissions.",
@@ -66,19 +70,31 @@ export const PracticeSession: React.FC<PracticeSessionProps> = ({
     setupSession();
 
     return () => {
-      console.log('Cleaning up session...');
-      stopCamera();
-      stopRecording();
-      stopTracking();
+      console.log('Cleaning up session...', { resourcesInitialized, isRecording });
+      if (resourcesInitialized) {
+        if (isRecording) {
+          console.log('Stopping recording...');
+          stopRecording();
+        }
+        if (videoRef.current) {
+          console.log('Stopping camera...');
+          stopCamera();
+        }
+        console.log('Stopping gesture tracking...');
+        stopTracking();
+      }
     };
   }, [isSessionActive]);
 
   const handleEndSession = async () => {
     console.log('Ending session...', { audioChunksCount: audioChunks.length });
     setIsSessionActive(false);
-    stopRecording();
-    stopCamera();
-    stopTracking();
+    
+    if (resourcesInitialized) {
+      stopRecording();
+      stopCamera();
+      stopTracking();
+    }
 
     try {
       const sessionId = crypto.randomUUID();
