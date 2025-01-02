@@ -36,11 +36,21 @@ export const analyzeGestureFrames = async (frames: Blob[]): Promise<GestureMetri
     console.log('Successfully converted', base64Frames.length, 'frames to base64');
     console.log('First frame length:', base64Frames[0]?.length || 0);
 
+    // Aggregate gesture data
+    const gestureData = {
+      frames: base64Frames,
+      timestamp: Date.now(),
+      metadata: {
+        frameCount: frames.length,
+        averageSize: frames.reduce((acc, frame) => acc + frame.size, 0) / frames.length
+      }
+    };
+
     console.log('Preparing to call analyze-gestures function...');
-    console.log('Request payload:', { frames: base64Frames });
+    console.log('Request metadata:', gestureData.metadata);
     
     const { data, error } = await supabase.functions.invoke('analyze-gestures', {
-      body: { frames: base64Frames }
+      body: gestureData
     });
 
     if (error) {
