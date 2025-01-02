@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { GestureMetrics } from '@/types/analysis';
 
 type GestureContextType = {
@@ -32,6 +32,7 @@ export const GestureProvider = ({ children }: { children: React.ReactNode }) => 
   const [isTracking, setIsTracking] = useState(false);
   const [gestureMetrics, setGestureMetrics] = useState<GestureMetrics>(defaultMetrics);
   const [aiFeedback, setAiFeedback] = useState<string | null>(null);
+  const { toast } = useToast();
 
   const updateGestureData = useCallback((metrics: GestureMetrics) => {
     console.log('Updating gesture metrics:', metrics);
@@ -54,8 +55,10 @@ export const GestureProvider = ({ children }: { children: React.ReactNode }) => 
       }
     } catch (error) {
       console.error('Error generating feedback:', error);
-      toast('Failed to generate AI feedback', {
-        description: error.message,
+      toast({
+        title: "Error",
+        description: "Failed to generate AI feedback",
+        variant: "destructive",
       });
     }
   };

@@ -20,10 +20,8 @@ export const analyzeGestureFrames = async (frames: Blob[]): Promise<any> => {
         const reader = new FileReader();
         reader.onloadend = () => {
           const base64 = reader.result as string;
-          // Remove the data URL prefix to save bandwidth
-          const base64Data = base64.split(',')[1];
-          console.log('Frame converted to base64, length:', base64Data.length);
-          resolve(base64Data);
+          console.log('Frame converted to base64, length:', base64.length);
+          resolve(base64);
         };
         reader.onerror = () => {
           console.error('Error reading frame:', reader.error);
@@ -36,25 +34,9 @@ export const analyzeGestureFrames = async (frames: Blob[]): Promise<any> => {
     const frameData = await Promise.all(framePromises);
     console.log('All frames converted to base64');
 
-    // Prepare analysis payload
-    const payload = {
-      frames: frameData,
-      metadata: {
-        frameCount: validFrames.length,
-        timestamp: Date.now(),
-        averageSize: validFrames.reduce((acc, frame) => acc + frame.size, 0) / validFrames.length
-      }
-    };
-
-    console.log('Sending analysis payload:', {
-      frameCount: payload.metadata.frameCount,
-      timestamp: payload.metadata.timestamp,
-      averageSize: payload.metadata.averageSize
-    });
-
-    // Call edge function for analysis with proper content type
+    // Call edge function for analysis
     const { data, error } = await supabase.functions.invoke('analyze-gestures', {
-      body: payload,
+      body: { frames: frameData }
     });
 
     if (error) {
@@ -64,6 +46,7 @@ export const analyzeGestureFrames = async (frames: Blob[]): Promise<any> => {
 
     console.log('Received analysis from edge function:', data);
     
+    // Process the analysis results
     if (!data || !data.gestureTypes) {
       console.error('Invalid analysis data received:', data);
       throw new Error('Invalid analysis data received');

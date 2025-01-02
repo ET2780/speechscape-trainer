@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { toast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/use-toast';
 
 export const useMediaStream = () => {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
 
   const startStream = async () => {
     try {
@@ -23,8 +24,10 @@ export const useMediaStream = () => {
       console.error('Error accessing camera:', err);
       const errorMessage = 'Unable to access camera. Please ensure you have granted camera permissions.';
       setError(errorMessage);
-      toast('Camera Error', {
+      toast({
+        title: "Camera Error",
         description: errorMessage,
+        variant: "destructive",
       });
     }
   };
