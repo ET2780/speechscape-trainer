@@ -12,7 +12,6 @@ import { PracticeSession } from "@/components/practice/PracticeSession";
 
 const Practice = () => {
   const navigate = useNavigate();
-  const { toast } = useToast();
   const [practiceType, setPracticeType] = useState<'presentation' | 'interview'>('presentation');
   const [file, setFile] = useState<File | null>(null);
   const [jobType, setJobType] = useState('');
@@ -31,9 +30,7 @@ const Practice = () => {
     if (!selectedFile) return;
 
     if (!selectedFile.type.includes('pdf') && !selectedFile.type.includes('powerpoint')) {
-      toast('Invalid file type', {
-        description: "Please upload a PDF or PPTX file",
-      });
+      toast("Please upload a PDF or PPTX file");
       return;
     }
 
