@@ -20,7 +20,8 @@ export class PoseEstimator {
         architecture: 'MobileNetV1',
         outputStride: 16,
         inputResolution: { width: 640, height: 480 },
-        multiplier: 0.75
+        multiplier: 0.75,
+        quantBytes: 2
       });
       console.log('PoseEstimator: Model loaded successfully');
       return true;
@@ -31,8 +32,8 @@ export class PoseEstimator {
   }
 
   async estimatePose(video: HTMLVideoElement): Promise<posenet.Pose | null> {
-    if (!this.net) {
-      console.error('PoseEstimator: Model not initialized');
+    if (!this.net || !this.isEstimating) {
+      console.error('PoseEstimator: Model not initialized or estimation stopped');
       return null;
     }
 
@@ -50,12 +51,15 @@ export class PoseEstimator {
   drawPose(pose: posenet.Pose) {
     if (!this.ctx) return;
 
+    // Clear previous drawings
+    this.ctx.clearRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
+
     // Draw keypoints
     pose.keypoints.forEach(keypoint => {
       if (keypoint.score > 0.5) {
         this.ctx!.beginPath();
         this.ctx!.arc(keypoint.position.x, keypoint.position.y, 5, 0, 2 * Math.PI);
-        this.ctx!.fillStyle = 'red';
+        this.ctx!.fillStyle = 'rgba(255, 0, 0, 0.7)';
         this.ctx!.fill();
       }
     });
@@ -71,7 +75,7 @@ export class PoseEstimator {
       this.ctx!.moveTo(from.position.x, from.position.y);
       this.ctx!.lineTo(to.position.x, to.position.y);
       this.ctx!.lineWidth = 2;
-      this.ctx!.strokeStyle = 'blue';
+      this.ctx!.strokeStyle = 'rgba(0, 0, 255, 0.7)';
       this.ctx!.stroke();
     });
   }
@@ -85,24 +89,51 @@ export class PoseEstimator {
     const rightWrist = keypoints.find(kp => kp.part === 'rightWrist');
     const leftShoulder = keypoints.find(kp => kp.part === 'leftShoulder');
     const rightShoulder = keypoints.find(kp => kp.part === 'rightShoulder');
+    const leftElbow = keypoints.find(kp => kp.part === 'leftElbow');
+    const rightElbow = keypoints.find(kp => kp.part === 'rightElbow');
+
+    if (!leftWrist || !rightWrist || !leftShoulder || !rightShoulder || !leftElbow || !rightElbow) {
+      return gestures;
+    }
 
     // Detect hands raised
-    if (leftWrist && leftShoulder && leftWrist.position.y < leftShoulder.position.y) {
+    if (leftWrist.position.y < leftShoulder.position.y - 100) {
       gestures.push('leftHandRaised');
     }
-    if (rightWrist && rightShoulder && rightWrist.position.y < rightShoulder.position.y) {
+    if (rightWrist.position.y < rightShoulder.position.y - 100) {
       gestures.push('rightHandRaised');
     }
 
-    // Detect pointing (simplified)
-    if (leftWrist && rightWrist) {
-      const horizontalDiff = Math.abs(leftWrist.position.x - rightWrist.position.x);
-      if (horizontalDiff > 100) {
-        gestures.push('pointing');
-      }
+    // Detect pointing
+    const isLeftArmExtended = this.calculateArmExtension(leftShoulder, leftElbow, leftWrist) > 0.8;
+    const isRightArmExtended = this.calculateArmExtension(rightShoulder, rightElbow, rightWrist) > 0.8;
+
+    if (isLeftArmExtended || isRightArmExtended) {
+      gestures.push('pointing');
+    }
+
+    // Detect open palm (simplified)
+    if (leftWrist.position.y < leftElbow.position.y || rightWrist.position.y < rightElbow.position.y) {
+      gestures.push('openPalm');
     }
 
     return gestures;
+  }
+
+  private calculateArmExtension(
+    shoulder: posenet.Keypoint,
+    elbow: posenet.Keypoint,
+    wrist: posenet.Keypoint
+  ): number {
+    const upperArmLength = this.distance(shoulder.position, elbow.position);
+    const forearmLength = this.distance(elbow.position, wrist.position);
+    const totalExtension = this.distance(shoulder.position, wrist.position);
+    
+    return totalExtension / (upperArmLength + forearmLength);
+  }
+
+  private distance(p1: { x: number; y: number }, p2: { x: number; y: number }): number {
+    return Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
   }
 
   start() {
