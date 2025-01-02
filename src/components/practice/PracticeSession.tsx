@@ -5,6 +5,7 @@ import { SessionControls } from "./SessionControls";
 import { GestureTracker } from "./GestureTracker";
 import { SessionAnalysis } from "./SessionAnalysis";
 import { useSessionResources } from "@/hooks/useSessionResources";
+import { useGesture } from "@/contexts/GestureContext";
 
 type PracticeSessionProps = {
   practiceType: 'presentation' | 'interview';
@@ -20,13 +21,13 @@ export const PracticeSession: React.FC<PracticeSessionProps> = ({
   industry
 }) => {
   const [isSessionActive, setIsSessionActive] = useState(true);
+  const { stopTracking } = useGesture();
   
   const {
     resourcesInitialized,
     audioChunks,
     stopRecording,
     stopCamera,
-    stopTracking
   } = useSessionResources(isSessionActive);
 
   const handleEndSession = async () => {
@@ -34,6 +35,7 @@ export const PracticeSession: React.FC<PracticeSessionProps> = ({
     setIsSessionActive(false);
     
     if (resourcesInitialized) {
+      console.log('Stopping all resources...');
       stopRecording();
       stopCamera();
       stopTracking();
@@ -61,7 +63,7 @@ export const PracticeSession: React.FC<PracticeSessionProps> = ({
         </>
       )}
 
-      {!isSessionActive && (
+      {!isSessionActive && audioChunks.length > 0 && (
         <SessionAnalysis audioChunks={audioChunks} />
       )}
     </div>

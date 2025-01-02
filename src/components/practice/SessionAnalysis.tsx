@@ -3,6 +3,7 @@ import { useSessionAnalysis } from "@/hooks/useSessionAnalysis";
 import { PerformanceReport } from "./PerformanceReport";
 import { useToast } from "@/hooks/use-toast";
 import { useGesture } from '@/contexts/GestureContext';
+import { Button } from "@/components/ui/button";
 
 interface SessionAnalysisProps {
   audioChunks: Blob[];
@@ -17,9 +18,9 @@ export const SessionAnalysis = ({ audioChunks }: SessionAnalysisProps) => {
   const startAnalysis = async () => {
     try {
       const sessionId = crypto.randomUUID();
-      console.log('Analyzing session with ID:', sessionId, 'with gesture metrics:', gestureMetrics);
+      console.log('Starting analysis for session:', sessionId);
+      console.log('Using gesture metrics:', gestureMetrics);
       
-      // Include gesture metrics in the analysis
       await analyzeSession(audioChunks, sessionId, gestureMetrics);
       setShowReport(true);
       
@@ -45,13 +46,17 @@ export const SessionAnalysis = ({ audioChunks }: SessionAnalysisProps) => {
     );
   }
 
-  if (isAnalyzing) {
-    return (
-      <div className="text-center">
-        <p className="text-gray-500">Analyzing your performance...</p>
-      </div>
-    );
-  }
-
-  return null;
+  return (
+    <div className="flex flex-col items-center justify-center gap-4 mt-8">
+      {isAnalyzing ? (
+        <div className="text-center">
+          <p className="text-gray-500">Analyzing your performance...</p>
+        </div>
+      ) : (
+        <Button onClick={startAnalysis} className="w-48">
+          Start Analysis
+        </Button>
+      )}
+    </div>
+  );
 };

@@ -39,7 +39,7 @@ export const GestureTracker = () => {
             });
           }
 
-          // Upload frames to Supabase storage for later analysis
+          // Upload frames to Supabase storage
           const uploadPromises = validFrames.map(async (frame, index) => {
             const fileName = `gesture_frame_${Date.now()}_${index}.jpg`;
             const { data, error } = await supabase.storage
@@ -58,6 +58,7 @@ export const GestureTracker = () => {
           
           console.log('Uploaded frames to storage:', validPaths);
           
+          // Analyze frames
           const metrics = await analyzeGestureFrames(validFrames);
           console.log('Received gesture metrics:', metrics);
           
