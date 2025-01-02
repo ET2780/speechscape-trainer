@@ -14,26 +14,23 @@ serve(async (req) => {
   try {
     console.log('Analyze-gestures function called');
     
-    const body = await req.text();
-    console.log('Raw request body:', body);
-    
-    const { frames, metadata } = JSON.parse(body);
-    console.log('Received request for gesture analysis:', {
-      frameCount: frames?.length,
-      metadata,
-      headers: Object.fromEntries(req.headers.entries())
+    // Get the request body
+    const body = await req.json();
+    console.log('Received request payload:', {
+      frameCount: body?.frames?.length,
+      metadata: body?.metadata
     });
 
     // Basic validation
-    if (!Array.isArray(frames) || frames.length === 0) {
+    if (!body?.frames || !Array.isArray(body.frames) || body.frames.length === 0) {
       console.error('Invalid or empty frames array received');
       throw new Error('Invalid frames data');
     }
 
     // Calculate frame statistics
-    const frameCount = frames.length;
-    const timestamp = metadata?.timestamp || Date.now();
-    const averageSize = metadata?.averageSize || 0;
+    const frameCount = body.frames.length;
+    const timestamp = body.metadata?.timestamp || Date.now();
+    const averageSize = body.metadata?.averageSize || 0;
     
     console.log('Analysis statistics:', {
       frameCount,

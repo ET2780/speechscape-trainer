@@ -21,7 +21,7 @@ export const analyzeGestureFrames = async (frames: Blob[]): Promise<any> => {
         reader.onloadend = () => {
           const base64 = reader.result as string;
           // Remove the data URL prefix to save bandwidth
-          const base64Data = (base64 as string).split(',')[1];
+          const base64Data = base64.split(',')[1];
           console.log('Frame converted to base64, length:', base64Data.length);
           resolve(base64Data);
         };
@@ -46,16 +46,15 @@ export const analyzeGestureFrames = async (frames: Blob[]): Promise<any> => {
       }
     };
 
-    console.log('Sending analysis payload to edge function:', {
+    console.log('Sending analysis payload:', {
       frameCount: payload.metadata.frameCount,
       timestamp: payload.metadata.timestamp,
-      averageSize: payload.metadata.averageSize,
-      endpoint: 'https://uwqntrczavpntsqvqvzf.supabase.co/functions/v1/analyze-gestures'
+      averageSize: payload.metadata.averageSize
     });
 
-    // Call edge function for analysis
+    // Call edge function for analysis with proper content type
     const { data, error } = await supabase.functions.invoke('analyze-gestures', {
-      body: JSON.stringify(payload)
+      body: payload,
     });
 
     if (error) {
@@ -65,7 +64,6 @@ export const analyzeGestureFrames = async (frames: Blob[]): Promise<any> => {
 
     console.log('Received analysis from edge function:', data);
     
-    // Process the analysis results
     if (!data || !data.gestureTypes) {
       console.error('Invalid analysis data received:', data);
       throw new Error('Invalid analysis data received');
