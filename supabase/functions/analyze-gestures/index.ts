@@ -1,5 +1,4 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,8 +12,11 @@ serve(async (req) => {
   }
 
   try {
-    const { frames } = await req.json()
-    console.log('Received frames for analysis:', frames.length)
+    const { frames, metadata } = await req.json()
+    console.log('Received request for gesture analysis:', {
+      frameCount: frames?.length,
+      metadata
+    })
 
     // Basic validation
     if (!Array.isArray(frames) || frames.length === 0) {
@@ -24,16 +26,9 @@ serve(async (req) => {
 
     // Calculate frame statistics
     const frameCount = frames.length
-    const timestamp = Date.now()
+    const timestamp = metadata?.timestamp || Date.now()
+    const averageSize = metadata?.averageSize || 0
     
-    // Calculate average frame size
-    const frameSizes = frames.map(frame => {
-      // Remove data:image/jpeg;base64, prefix if present
-      const base64Data = frame.replace(/^data:image\/\w+;base64,/, '')
-      return base64Data.length
-    })
-    const averageSize = frameSizes.reduce((a, b) => a + b, 0) / frameCount
-
     console.log('Analysis statistics:', {
       frameCount,
       averageSize,

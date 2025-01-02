@@ -30,18 +30,33 @@ export const GestureTracker = () => {
   const processFrames = async (frames: Blob[]) => {
     try {
       console.log('Processing frame buffer:', frames.length, 'frames');
-      console.log('Frame sizes:', frames.map(frame => frame.size));
       
       // Validate frames before processing
       const validFrames = frames.filter(frame => frame && frame.size > 0);
-      if (validFrames.length !== frames.length) {
-        console.error('Some frames are invalid:', {
-          total: frames.length,
-          valid: validFrames.length
-        });
+      if (validFrames.length === 0) {
+        throw new Error('No valid frames to process');
       }
 
-      // Upload frames to Supabase storage
+      console.log('Valid frames for processing:', validFrames.length);
+
+      // Convert frames to base64
+      const base64Frames = await Promise.all(
+        validFrames.map(async (frame) => {
+          return new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              const base64 = reader.result as string;
+              resolve(base64);
+            };
+            reader.onerror = () => reject(reader.error);
+            reader.readAsDataURL(frame);
+          });
+        })
+      );
+
+      console.log('Converted frames to base64, preparing for analysis');
+
+      // Upload frames to Supabase storage for reference
       const uploadPromises = validFrames.map(async (frame, index) => {
         const fileName = `gesture_frame_${Date.now()}_${index}.jpg`;
         const { data, error } = await supabase.storage
@@ -60,6 +75,21 @@ export const GestureTracker = () => {
       
       console.log('Uploaded frames to storage:', validPaths);
       
+      // Prepare analysis payload
+      const analysisPayload = {
+        frames: base64Frames,
+        metadata: {
+          frameCount: validFrames.length,
+          timestamp: Date.now(),
+          framePaths: validPaths
+        }
+      };
+
+      console.log('Sending frames for analysis:', {
+        frameCount: analysisPayload.metadata.frameCount,
+        timestamp: analysisPayload.metadata.timestamp
+      });
+      
       // Analyze frames
       const metrics = await analyzeGestureFrames(validFrames);
       console.log('Received gesture metrics:', metrics);
@@ -74,7 +104,7 @@ export const GestureTracker = () => {
       
       toast({
         title: "Gesture Analysis",
-        description: "Successfully analyzed your gestures",
+        description: `Successfully analyzed ${validFrames.length} frames`,
       });
     } catch (err) {
       console.error('Error analyzing frames:', err);

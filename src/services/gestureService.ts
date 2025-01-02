@@ -34,9 +34,25 @@ export const analyzeGestureFrames = async (frames: Blob[]): Promise<any> => {
     const frameData = await Promise.all(framePromises);
     console.log('All frames converted to base64');
 
+    // Prepare analysis payload
+    const payload = {
+      frames: frameData,
+      metadata: {
+        frameCount: validFrames.length,
+        timestamp: Date.now(),
+        averageSize: validFrames.reduce((acc, frame) => acc + frame.size, 0) / validFrames.length
+      }
+    };
+
+    console.log('Sending analysis payload:', {
+      frameCount: payload.metadata.frameCount,
+      timestamp: payload.metadata.timestamp,
+      averageSize: payload.metadata.averageSize
+    });
+
     // Call edge function for analysis
     const { data, error } = await supabase.functions.invoke('analyze-gestures', {
-      body: { frames: frameData }
+      body: payload
     });
 
     if (error) {
