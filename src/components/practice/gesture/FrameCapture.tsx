@@ -32,7 +32,10 @@ export const FrameCapture = ({
     const intervalId = setInterval(() => {
       const video = videoRef.current;
       const canvas = canvasRef.current;
-      if (!video || !canvas) return;
+      if (!video || !canvas || video.readyState !== video.HAVE_ENOUGH_DATA) {
+        console.log('Video not ready for capture');
+        return;
+      }
 
       const context = canvas.getContext('2d');
       if (!context) {
@@ -43,16 +46,23 @@ export const FrameCapture = ({
       // Set canvas dimensions to match video
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
+      
+      // Draw the video frame to the canvas
       context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-      canvas.toBlob((blob) => {
-        if (!blob) {
-          console.error('Failed to create blob from canvas');
-          return;
-        }
-        console.log('Captured frame:', blob.size, 'bytes');
-        onFrame(blob);
-      }, 'image/jpeg', 0.8);
+      // Convert the canvas to a blob
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            console.error('Failed to create blob from canvas');
+            return;
+          }
+          console.log('Captured frame:', blob.size, 'bytes');
+          onFrame(blob);
+        },
+        'image/jpeg',
+        0.8
+      );
     }, captureInterval);
 
     return () => {

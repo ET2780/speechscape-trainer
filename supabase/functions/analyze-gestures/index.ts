@@ -43,16 +43,16 @@ serve(async (req) => {
             role: 'system',
             content: `You are an expert presentation coach analyzing body language and facial expressions.
             Focus on:
-            1. Posture and stance
-            2. Hand gestures and their effectiveness
-            3. Facial expressions and engagement
-            4. Eye contact and audience connection
-            5. Overall stage presence and confidence
+            1. Posture and stance - evaluate confidence and presence
+            2. Hand gestures - assess naturalness and effectiveness
+            3. Facial expressions - analyze engagement and emotional connection
+            4. Eye contact - evaluate audience connection
+            5. Overall presence - assess professionalism and authenticity
             
             Provide analysis in JSON format with:
             {
               "gestureType": "pointing|waving|openPalm|other",
-              "description": "detailed analysis",
+              "description": "detailed analysis of the presenter's body language",
               "confidence": 0-100,
               "impact": "positive|negative|neutral",
               "suggestions": ["specific improvements"]
@@ -61,7 +61,10 @@ serve(async (req) => {
           {
             role: 'user',
             content: [
-              { type: 'text', text: 'Analyze this presenter\'s body language and facial expressions.' },
+              { 
+                type: 'text', 
+                text: 'Analyze this presenter\'s body language and facial expressions in the context of a professional presentation.' 
+              },
               {
                 type: 'image_url',
                 image_url: {
@@ -104,7 +107,7 @@ serve(async (req) => {
     }));
 
     const metrics = {
-      gesturesPerMinute: analyses.length * (60 / 30), // 30 seconds of analysis
+      gesturesPerMinute: analyses.length * (60 / 15), // 15 seconds of analysis
       gestureTypes: {
         pointing: 0,
         waving: 0,
@@ -115,16 +118,18 @@ serve(async (req) => {
       gestureToSpeechRatio: 0.8,
       aiFeedback: null,
       screenshots: [],
-      analysis: {}
+      analysis: analyses.reduce((acc, analysis, index) => {
+        acc[index] = analysis;
+        return acc;
+      }, {})
     };
 
-    analyses.forEach((analysis, index) => {
+    analyses.forEach(analysis => {
       if (metrics.gestureTypes.hasOwnProperty(analysis.gestureType)) {
         metrics.gestureTypes[analysis.gestureType]++;
       } else {
         metrics.gestureTypes.other++;
       }
-      metrics.analysis[index] = analysis;
     });
 
     console.log('Final metrics calculated:', metrics);

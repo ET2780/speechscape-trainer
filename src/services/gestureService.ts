@@ -20,7 +20,12 @@ export const analyzeGestureFrames = async (frames: Blob[]): Promise<GestureMetri
       throw error;
     }
 
-    console.log('Gesture analysis received:', data);
+    if (!data?.metrics) {
+      console.error('Invalid response format:', data);
+      throw new Error('Invalid response format from analyze-gestures function');
+    }
+
+    console.log('Gesture analysis received:', data.metrics);
     return data.metrics;
   } catch (error) {
     console.error('Error analyzing gestures:', error);
