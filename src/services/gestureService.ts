@@ -5,18 +5,23 @@ export const analyzeGestureFrames = async (frames: Blob[]): Promise<GestureMetri
   console.log('Starting gesture analysis with', frames.length, 'frames');
   
   try {
-    const formData = new FormData();
-    frames.forEach((frame, index) => {
-      if (!frame || frame.size === 0) {
-        throw new Error(`Invalid frame at index ${index}`);
-      }
-      formData.append(`images`, frame, `frame${index}.jpg`);
-      console.log(`Added frame ${index} to form data, size:`, frame.size);
-    });
+    // Convert blobs to base64 strings
+    const base64Frames = await Promise.all(
+      frames.map(async (frame) => {
+        if (!frame || frame.size === 0) {
+          throw new Error('Invalid frame');
+        }
+        const buffer = await frame.arrayBuffer();
+        const base64 = btoa(
+          new Uint8Array(buffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
+        );
+        return `data:image/jpeg;base64,${base64}`;
+      })
+    );
 
     console.log('Calling analyze-gestures function with', frames.length, 'frames');
     const { data, error } = await supabase.functions.invoke('analyze-gestures', {
-      body: formData,
+      body: { frames: base64Frames },
     });
 
     if (error) {
