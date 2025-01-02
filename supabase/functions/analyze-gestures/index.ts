@@ -10,6 +10,7 @@ const corsHeaders = {
 
 serve(async (req) => {
   console.log('Received request to analyze-gestures function');
+  console.log('Request method:', req.method);
   
   if (req.method === 'OPTIONS') {
     console.log('Handling CORS preflight request');
@@ -37,7 +38,7 @@ serve(async (req) => {
       const base64Image = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
 
       const requestBody = {
-        model: 'gpt-4-vision-preview',
+        model: 'gpt-4o-mini',
         messages: [
           {
             role: 'system',
@@ -101,7 +102,7 @@ serve(async (req) => {
       try {
         const analysis = JSON.parse(data.choices[0].message.content);
         analysis.timestamp = new Date().toISOString();
-        console.log(`Successfully parsed analysis for frame ${index + 1} with movement patterns`);
+        console.log(`Successfully parsed analysis for frame ${index + 1} with movement patterns:`, analysis);
         return analysis;
       } catch (parseError) {
         console.error(`Error parsing OpenAI response for frame ${index + 1}:`, parseError);
