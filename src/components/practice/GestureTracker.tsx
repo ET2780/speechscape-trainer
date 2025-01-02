@@ -8,6 +8,7 @@ export const GestureTracker = () => {
   const { isTracking, updateGestureData } = useGesture();
   const { stream, error, startStream, stopStream } = useMediaStream();
   const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [frameBuffer, setFrameBuffer] = useState<Blob[]>([]);
 
   // Start/stop stream based on tracking state
   useEffect(() => {
@@ -20,30 +21,37 @@ export const GestureTracker = () => {
     }
   }, [isTracking]);
 
-  if (!isTracking) return null;
-
-  // Create an analyzer instance
-  const analyzer = {
-    processFrame: async (blob: Blob) => {
-      try {
-        console.log('Processing frame, size:', blob.size);
-        const metrics = await analyzeGestureFrames([blob]);
-        console.log('Received gesture metrics:', metrics);
-        updateGestureData(metrics);
-      } catch (err) {
-        console.error('Error analyzing frame:', err);
-        setAnalysisError('Failed to analyze gestures');
+  // Process frames when buffer reaches threshold
+  useEffect(() => {
+    const processFrames = async () => {
+      if (frameBuffer.length >= 6) { // Process after collecting 6 frames (30 seconds)
+        try {
+          console.log('Processing frame buffer:', frameBuffer.length, 'frames');
+          const metrics = await analyzeGestureFrames(frameBuffer);
+          console.log('Received gesture metrics:', metrics);
+          updateGestureData(metrics);
+          setFrameBuffer([]); // Clear buffer after processing
+        } catch (err) {
+          console.error('Error analyzing frames:', err);
+          setAnalysisError('Failed to analyze gestures');
+        }
       }
-    }
+    };
+
+    processFrames();
+  }, [frameBuffer]);
+
+  const handleFrame = (blob: Blob) => {
+    setFrameBuffer(prev => [...prev, blob]);
   };
 
+  if (!isTracking) return null;
+
   return (
-    <>
-      <FrameCapture
-        stream={stream}
-        error={error || analysisError}
-        onFrame={analyzer.processFrame}
-      />
-    </>
+    <FrameCapture
+      stream={stream}
+      error={error || analysisError}
+      onFrame={handleFrame}
+    />
   );
 };

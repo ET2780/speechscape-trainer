@@ -36,7 +36,7 @@ export const FrameCapture = ({
 
       const context = canvas.getContext('2d');
       if (!context) {
-        console.log('Canvas context not available');
+        console.error('Canvas context not available');
         return;
       }
 
@@ -46,7 +46,7 @@ export const FrameCapture = ({
 
       canvas.toBlob((blob) => {
         if (!blob) {
-          console.log('Failed to create blob from canvas');
+          console.error('Failed to create blob from canvas');
           return;
         }
         console.log('Captured frame:', blob.size, 'bytes');
