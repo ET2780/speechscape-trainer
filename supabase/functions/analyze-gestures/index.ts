@@ -36,13 +36,11 @@ serve(async (req) => {
     const analyses = await Promise.all(images.map(async (image: File, index) => {
       console.log(`Processing image ${index + 1}, size: ${image.size} bytes`);
       
-      const base64Image = await image.arrayBuffer().then(buffer => 
-        btoa(String.fromCharCode(...new Uint8Array(buffer)))
-      );
+      // Convert image to base64
+      const arrayBuffer = await image.arrayBuffer();
+      const base64Image = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
       console.log(`Successfully converted image ${index + 1} to base64`);
 
-      console.log(`Sending frame ${index + 1} to OpenAI Vision...`);
-      
       const requestBody = {
         model: 'gpt-4o-mini',
         messages: [
@@ -101,11 +99,15 @@ serve(async (req) => {
         throw new Error('Invalid response format from OpenAI');
       }
 
-      const analysis = JSON.parse(data.choices[0].message.content);
-      analysis.timestamp = new Date().toISOString();
-
-      console.log(`Analysis completed for frame ${index + 1}:`, analysis);
-      return analysis;
+      try {
+        const analysis = JSON.parse(data.choices[0].message.content);
+        analysis.timestamp = new Date().toISOString();
+        console.log(`Successfully parsed analysis for frame ${index + 1}:`, analysis);
+        return analysis;
+      } catch (parseError) {
+        console.error(`Error parsing OpenAI response for frame ${index + 1}:`, parseError);
+        throw new Error('Failed to parse OpenAI response');
+      }
     }));
 
     // Calculate metrics based on analyses
