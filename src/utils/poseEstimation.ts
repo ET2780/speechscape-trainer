@@ -1,4 +1,5 @@
 import * as tf from '@tensorflow/tfjs';
+import '@tensorflow/tfjs-backend-webgl';
 import * as posenet from '@tensorflow-models/posenet';
 
 export class PoseEstimator {
@@ -16,11 +17,13 @@ export class PoseEstimator {
   async initialize() {
     try {
       console.log('PoseEstimator: Setting up TensorFlow backend...');
+      
       // First, explicitly set and initialize the WebGL backend
       await tf.setBackend('webgl');
       await tf.ready();
       console.log('PoseEstimator: TensorFlow backend initialized:', tf.getBackend());
 
+      // Configure and load PoseNet with optimal settings for real-time processing
       console.log('PoseEstimator: Loading PoseNet model...');
       this.net = await posenet.load({
         architecture: 'MobileNetV1',
@@ -34,8 +37,8 @@ export class PoseEstimator {
       console.log('PoseEstimator: Model loaded successfully');
       return true;
     } catch (error) {
-      console.error('PoseEstimator: Error loading model:', error);
-      throw new Error('Failed to load PoseNet model');
+      console.error('PoseEstimator: Error during initialization:', error);
+      throw new Error('Failed to initialize PoseNet model');
     }
   }
 
@@ -46,9 +49,22 @@ export class PoseEstimator {
     }
 
     try {
+      // Ensure video dimensions are set
+      if (video.videoWidth === 0 || video.videoHeight === 0) {
+        console.error('PoseEstimator: Video dimensions not ready');
+        return null;
+      }
+
+      console.log('PoseEstimator: Estimating pose from video frame');
       const pose = await this.net.estimateSinglePose(video, {
         flipHorizontal: false
       });
+      
+      console.log('PoseEstimator: Pose estimated:', {
+        score: pose.score,
+        keypoints: pose.keypoints.length
+      });
+      
       return pose;
     } catch (error) {
       console.error('PoseEstimator: Error estimating pose:', error);
@@ -92,7 +108,7 @@ export class PoseEstimator {
     const gestures: string[] = [];
     const keypoints = pose.keypoints;
 
-    // Get relevant keypoints
+    // Get relevant keypoints for gesture detection
     const leftWrist = keypoints.find(kp => kp.part === 'leftWrist');
     const rightWrist = keypoints.find(kp => kp.part === 'rightWrist');
     const leftShoulder = keypoints.find(kp => kp.part === 'leftShoulder');
@@ -101,27 +117,32 @@ export class PoseEstimator {
     const rightElbow = keypoints.find(kp => kp.part === 'rightElbow');
 
     if (!leftWrist || !rightWrist || !leftShoulder || !rightShoulder || !leftElbow || !rightElbow) {
+      console.log('PoseEstimator: Missing required keypoints for gesture detection');
       return gestures;
     }
 
-    // Detect hands raised
+    // Detect hands raised above shoulders
     if (leftWrist.position.y < leftShoulder.position.y - 100) {
+      console.log('PoseEstimator: Detected left hand raised');
       gestures.push('leftHandRaised');
     }
     if (rightWrist.position.y < rightShoulder.position.y - 100) {
+      console.log('PoseEstimator: Detected right hand raised');
       gestures.push('rightHandRaised');
     }
 
-    // Detect pointing
+    // Detect pointing gestures based on arm extension
     const isLeftArmExtended = this.calculateArmExtension(leftShoulder, leftElbow, leftWrist) > 0.8;
     const isRightArmExtended = this.calculateArmExtension(rightShoulder, rightElbow, rightWrist) > 0.8;
 
     if (isLeftArmExtended || isRightArmExtended) {
+      console.log('PoseEstimator: Detected pointing gesture');
       gestures.push('pointing');
     }
 
-    // Detect open palm (simplified)
+    // Detect open palm gestures
     if (leftWrist.position.y < leftElbow.position.y || rightWrist.position.y < rightElbow.position.y) {
+      console.log('PoseEstimator: Detected open palm gesture');
       gestures.push('openPalm');
     }
 
