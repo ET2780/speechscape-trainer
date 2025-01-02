@@ -2,15 +2,19 @@ import { supabase } from "@/integrations/supabase/client";
 import { GestureMetrics } from "@/types/analysis";
 
 export const analyzeGestureFrames = async (frames: Blob[]): Promise<GestureMetrics> => {
-  console.log('Analyzing gesture frames:', frames.length);
+  console.log('Starting gesture analysis with', frames.length, 'frames');
   
   try {
     const formData = new FormData();
     frames.forEach((frame, index) => {
+      if (!frame || frame.size === 0) {
+        throw new Error(`Invalid frame at index ${index}`);
+      }
       formData.append(`images`, frame, `frame${index}.jpg`);
+      console.log(`Added frame ${index} to form data, size:`, frame.size);
     });
 
-    console.log('Sending frames to analyze-gestures function');
+    console.log('Calling analyze-gestures function with', frames.length, 'frames');
     const { data, error } = await supabase.functions.invoke('analyze-gestures', {
       body: formData,
     });

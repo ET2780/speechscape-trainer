@@ -12,7 +12,6 @@ export const GestureTracker = () => {
   const [frameBuffer, setFrameBuffer] = useState<Blob[]>([]);
   const { toast } = useToast();
 
-  // Start/stop stream based on tracking state
   useEffect(() => {
     if (isTracking) {
       console.log('Starting gesture tracking...');
@@ -23,12 +22,13 @@ export const GestureTracker = () => {
     }
   }, [isTracking]);
 
-  // Process frames when buffer reaches threshold
   useEffect(() => {
     const processFrames = async () => {
-      if (frameBuffer.length >= 3) { // Process after collecting 3 frames (15 seconds)
+      if (frameBuffer.length >= 3) {
         try {
           console.log('Processing frame buffer:', frameBuffer.length, 'frames');
+          console.log('Frame sizes:', frameBuffer.map(frame => frame.size));
+          
           const metrics = await analyzeGestureFrames(frameBuffer);
           console.log('Received gesture metrics:', metrics);
           updateGestureData(metrics);
@@ -54,6 +54,10 @@ export const GestureTracker = () => {
   }, [frameBuffer]);
 
   const handleFrame = (blob: Blob) => {
+    if (!blob || blob.size === 0) {
+      console.error('Received invalid frame:', blob);
+      return;
+    }
     console.log('Received frame:', blob.size, 'bytes');
     setFrameBuffer(prev => [...prev, blob]);
   };

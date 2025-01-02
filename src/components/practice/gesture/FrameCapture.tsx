@@ -22,17 +22,30 @@ export const FrameCapture = ({
   const trackerRef = useRef<BodyTracker | null>(null);
 
   useEffect(() => {
-    if (!stream || !videoRef.current || !canvasRef.current) return;
+    if (!stream || !videoRef.current || !canvasRef.current) {
+      console.log('Missing required refs or stream for frame capture');
+      return;
+    }
     
-    videoRef.current.srcObject = stream;
-    trackerRef.current = new BodyTracker(videoRef.current, canvasRef.current);
-    trackerRef.current.start();
-
     console.log('Setting up frame capture with body tracking...');
+    videoRef.current.srcObject = stream;
     
+    // Wait for video to be ready before initializing tracker
+    videoRef.current.onloadedmetadata = () => {
+      console.log('Video metadata loaded, dimensions:', {
+        width: videoRef.current?.videoWidth,
+        height: videoRef.current?.videoHeight
+      });
+      
+      if (!videoRef.current || !canvasRef.current) return;
+      
+      trackerRef.current = new BodyTracker(videoRef.current, canvasRef.current);
+      trackerRef.current.start();
+    };
+
     const intervalId = setInterval(async () => {
       if (!trackerRef.current) {
-        console.log('Tracker not initialized');
+        console.log('Tracker not initialized yet');
         return;
       }
 
