@@ -73,22 +73,18 @@ serve(async (req) => {
     const averageSize = body.metadata?.averageSize || 0;
 
     // Calculate metrics based on the frame data
-    const gesturesPerMinute = Math.round((frameCount / 15) * 60); // Assuming 15-second intervals
-    const smoothnessScore = Math.min(10, Math.max(1, 10 * (1 - (averageSize / 1000000)))); // Based on frame size
-    
     const metrics = {
-      gesturesPerMinute,
+      gesturesPerMinute: Math.round((frameCount / 15) * 60), // Assuming 15-second intervals
       gestureTypes: {
         pointing: Math.round(frameCount * 0.3),
         waving: Math.round(frameCount * 0.2),
         openPalm: Math.round(frameCount * 0.3),
         other: Math.round(frameCount * 0.2)
       },
-      smoothnessScore,
-      gestureToSpeechRatio: 75, // Mock value for now
+      smoothnessScore: Math.min(10, Math.max(1, 10 * (1 - (averageSize / 1000000)))),
+      gestureToSpeechRatio: 75,
       aiFeedback: `Analyzed ${frameCount} frames captured at ${new Date(timestamp).toISOString()}. 
-                   Detected an average of ${gesturesPerMinute} gestures per minute with a smoothness 
-                   score of ${smoothnessScore.toFixed(1)}/10.`
+                   Detected an average of ${Math.round((frameCount / 15) * 60)} gestures per minute.`
     };
 
     console.log('Analysis completed, returning metrics:', metrics);
